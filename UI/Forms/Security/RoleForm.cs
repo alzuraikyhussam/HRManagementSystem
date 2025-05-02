@@ -1,129 +1,319 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
 using HR.Core;
+using HR.DataAccess;
 using HR.Models;
 
 namespace HR.UI.Forms.Security
 {
     /// <summary>
-    /// نموذج إدارة الأدوار والصلاحيات
+    /// نموذج إدارة الدور
     /// </summary>
     public partial class RoleForm : XtraForm
     {
-        // كائن الدور الحالي
-        private Role _role;
-        
-        // قائمة صلاحيات الدور
-        private List<RolePermission> _permissions;
-        
-        // تحديد ما إذا كان هناك تغييرات
-        private bool _hasChanges = false;
-        
-        // تحديد ما إذا كانت عملية إضافة جديدة
-        private bool _isNewRole = false;
-        
-        // قائمة بوحدات النظام (موديولات) المتاحة للصلاحيات
-        private List<string> _systemModules = new List<string>
-        {
-            "الشركة والهيكل التنظيمي",
-            "المستخدمين والصلاحيات",
-            "إدارة الموظفين",
-            "الحضور والانصراف",
-            "الإجازات",
-            "الرواتب",
-            "التقارير",
-            "إعدادات النظام"
-        };
-        
+        private readonly DatabaseContext _dbContext;
+        private readonly SessionManager _sessionManager;
+        private Role _currentRole;
+        private bool _isNew = true;
+        private List<ModulePermission> _modulePermissions = new List<ModulePermission>();
+
         /// <summary>
-        /// تهيئة نموذج إدارة الدور
+        /// إنشاء نموذج جديد
         /// </summary>
         public RoleForm()
         {
             InitializeComponent();
-            
-            // إنشاء دور جديد
-            _role = new Role();
-            _permissions = new List<RolePermission>();
-            _isNewRole = true;
-            
-            // ضبط خصائص النموذج
-            this.Text = "إضافة دور جديد";
-            
-            // تهيئة عناصر التحكم
-            InitializeControls();
-            
-            // تسجيل الأحداث
-            this.Load += RoleForm_Load;
-        }
-        
-        /// <summary>
-        /// تهيئة نموذج إدارة الدور (تعديل دور موجود)
-        /// </summary>
-        public RoleForm(int roleId)
-        {
-            InitializeComponent();
-            
-            // جلب الدور من قاعدة البيانات
-            using (var unitOfWork = new UnitOfWork())
-            {
-                _role = unitOfWork.RoleRepository.GetById(roleId);
-                
-                if (_role == null)
-                {
-                    // إذا لم يتم العثور على الدور، إنشاء دور جديد
-                    _role = new Role();
-                    _permissions = new List<RolePermission>();
-                    _isNewRole = true;
-                    this.Text = "إضافة دور جديد";
-                }
-                else
-                {
-                    // جلب صلاحيات الدور
-                    _permissions = unitOfWork.RoleRepository.GetRolePermissions(roleId);
-                    _isNewRole = false;
-                    this.Text = $"تعديل دور: {_role.Name}";
-                }
-            }
-            
-            // تهيئة عناصر التحكم
-            InitializeControls();
-            
-            // تسجيل الأحداث
-            this.Load += RoleForm_Load;
+            _dbContext = new DatabaseContext();
+            _sessionManager = SessionManager.Instance;
+            _currentRole = new Role();
         }
 
         /// <summary>
-        /// تهيئة عناصر التحكم
+        /// إنشاء نموذج لتعديل دور موجود
         /// </summary>
-        private void InitializeControls()
+        /// <param name="roleId">معرف الدور</param>
+        public RoleForm(int roleId) : this()
+        {
+            _isNew = false;
+            LoadRole(roleId);
+        }
+
+        /// <summary>
+        /// تحميل بيانات الدور
+        /// </summary>
+        /// <param name="roleId">معرف الدور</param>
+        private void LoadRole(int roleId)
         {
             try
             {
-                // تسجيل أحداث التغيير للحقول
-                RegisterChangeEvents();
-                
-                // تسجيل أحداث الأزرار
-                buttonSave.Click += ButtonSave_Click;
-                buttonCancel.Click += ButtonCancel_Click;
-                buttonSelectAll.Click += ButtonSelectAll_Click;
-                buttonDeselectAll.Click += ButtonDeselectAll_Click;
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@RoleID", roleId)
+                };
+
+                string query = @"
+                SELECT * FROM Roles 
+                WHERE ID = @RoleID";
+
+                var dataTable = _dbContext.ExecuteReader(query, parameters);
+
+                if (dataTable.Rows.Count > 0)
+                {
+                    var row = dataTable.Rows[0];
+                    _currentRole = new Role
+                    {
+                        ID = Convert.ToInt32(row["ID"]),
+                        Name = row["Name"].ToString(),
+                        Description = row["Description"].ToString(),
+                        IsDefault = Convert.ToBoolean(row["IsDefault"]),
+                        IsAdmin = Convert.ToBoolean(row["IsAdmin"]),
+                        IsActive = Convert.ToBoolean(row["IsActive"]),
+                        CreatedAt = row["CreatedAt"] as DateTime?,
+                        CreatedBy = row["CreatedBy"] as int?,
+                        UpdatedAt = row["UpdatedAt"] as DateTime?,
+                        UpdatedBy = row["UpdatedBy"] as int?
+                    };
+
+                    // تعبئة البيانات في الحقول
+                    txtRoleName.Text = _currentRole.Name;
+                    txtDescription.Text = _currentRole.Description;
+                    chkIsDefault.Checked = _currentRole.IsDefault;
+                    chkIsAdmin.Checked = _currentRole.IsAdmin;
+                    chkIsActive.Checked = _currentRole.IsActive;
+
+                    // تحميل صلاحيات الدور
+                    LoadRolePermissions(roleId);
+                }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, "فشل تهيئة عناصر التحكم في نموذج إدارة الدور");
+                XtraMessageBox.Show("حدث خطأ أثناء تحميل بيانات الدور: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         /// <summary>
-        /// تسجيل أحداث التغيير للحقول
+        /// تحميل صلاحيات الدور
         /// </summary>
-        private void RegisterChangeEvents()
+        /// <param name="roleId">معرف الدور</param>
+        private void LoadRolePermissions(int roleId)
         {
-            textEditName.EditValueChanged += Control_ValueChanged;
-            memoEditDescription.EditValueChanged += Control_ValueChanged;
+            try
+            {
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@RoleID", roleId)
+                };
+
+                string query = @"
+                SELECT * FROM RolePermissions 
+                WHERE RoleID = @RoleID";
+
+                var dataTable = _dbContext.ExecuteReader(query, parameters);
+
+                // تحميل الوحدات والصلاحيات
+                LoadModules();
+
+                // تعيين صلاحيات الدور
+                foreach (var row in dataTable.AsEnumerable())
+                {
+                    string moduleName = row["ModuleName"].ToString();
+                    
+                    var modulePermission = _modulePermissions.Find(m => m.ModuleName == moduleName);
+                    if (modulePermission != null)
+                    {
+                        modulePermission.CanView = Convert.ToBoolean(row["CanView"]);
+                        modulePermission.CanAdd = Convert.ToBoolean(row["CanAdd"]);
+                        modulePermission.CanEdit = Convert.ToBoolean(row["CanEdit"]);
+                        modulePermission.CanDelete = Convert.ToBoolean(row["CanDelete"]);
+                        modulePermission.CanPrint = Convert.ToBoolean(row["CanPrint"]);
+                        modulePermission.CanExport = Convert.ToBoolean(row["CanExport"]);
+                        modulePermission.CanApprove = Convert.ToBoolean(row["CanApprove"]);
+                    }
+                }
+
+                // تحديث عرض الصلاحيات
+                RefreshPermissionsGrid();
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show("حدث خطأ أثناء تحميل صلاحيات الدور: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// تحميل الوحدات النظام
+        /// </summary>
+        private void LoadModules()
+        {
+            // إضافة وحدات النظام
+            _modulePermissions.Clear();
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الإعدادات", Description = "إدارة إعدادات النظام" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "المستخدمين", Description = "إدارة المستخدمين والصلاحيات" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الأدوار", Description = "إدارة أدوار المستخدمين" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الموظفين", Description = "إدارة بيانات الموظفين" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الحضور", Description = "إدارة الحضور والانصراف" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الإجازات", Description = "إدارة طلبات الإجازات" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الرواتب", Description = "إدارة الرواتب والمكافآت" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "التقارير", Description = "استخراج التقارير" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الشركة", Description = "إدارة بيانات الشركة" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الأقسام", Description = "إدارة الأقسام والإدارات" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "الوظائف", Description = "إدارة المسميات الوظيفية" });
+            _modulePermissions.Add(new ModulePermission { ModuleName = "المناوبات", Description = "إدارة مناوبات العمل" });
+        }
+
+        /// <summary>
+        /// تحديث عرض صلاحيات الدور
+        /// </summary>
+        private void RefreshPermissionsGrid()
+        {
+            // تحديث عرض الصلاحيات في الشبكة
+            gridPermissions.DataSource = null;
+            gridPermissions.DataSource = _modulePermissions;
+            gridViewPermissions.RefreshData();
+        }
+
+        /// <summary>
+        /// حفظ بيانات الدور
+        /// </summary>
+        private void SaveRole()
+        {
+            try
+            {
+                // التحقق من صحة البيانات
+                if (string.IsNullOrWhiteSpace(txtRoleName.Text))
+                {
+                    XtraMessageBox.Show("يرجى إدخال اسم الدور", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtRoleName.Focus();
+                    return;
+                }
+
+                // تحديث بيانات الدور
+                _currentRole.Name = txtRoleName.Text;
+                _currentRole.Description = txtDescription.Text;
+                _currentRole.IsDefault = chkIsDefault.Checked;
+                _currentRole.IsAdmin = chkIsAdmin.Checked;
+                _currentRole.IsActive = chkIsActive.Checked;
+
+                // بدء المعاملة
+                _dbContext.ExecuteTransaction((connection, transaction) =>
+                {
+                    if (_isNew)
+                    {
+                        // إضافة دور جديد
+                        string insertRoleQuery = @"
+                        INSERT INTO Roles (Name, Description, IsDefault, IsAdmin, IsActive, CreatedAt, CreatedBy)
+                        VALUES (@Name, @Description, @IsDefault, @IsAdmin, @IsActive, @CreatedAt, @CreatedBy);
+                        SELECT SCOPE_IDENTITY();";
+
+                        List<SqlParameter> insertRoleParams = new List<SqlParameter>
+                        {
+                            new SqlParameter("@Name", _currentRole.Name),
+                            new SqlParameter("@Description", _currentRole.Description ?? (object)DBNull.Value),
+                            new SqlParameter("@IsDefault", _currentRole.IsDefault),
+                            new SqlParameter("@IsAdmin", _currentRole.IsAdmin),
+                            new SqlParameter("@IsActive", _currentRole.IsActive),
+                            new SqlParameter("@CreatedAt", DateTime.Now),
+                            new SqlParameter("@CreatedBy", _sessionManager.CurrentUser?.ID ?? (object)DBNull.Value)
+                        };
+
+                        // تنفيذ الاستعلام وإرجاع المعرف الجديد
+                        SqlCommand cmd = new SqlCommand(insertRoleQuery, connection, transaction);
+                        cmd.Parameters.AddRange(insertRoleParams.ToArray());
+                        _currentRole.ID = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                    else
+                    {
+                        // تحديث دور موجود
+                        string updateRoleQuery = @"
+                        UPDATE Roles 
+                        SET Name = @Name, 
+                            Description = @Description, 
+                            IsDefault = @IsDefault, 
+                            IsAdmin = @IsAdmin, 
+                            IsActive = @IsActive, 
+                            UpdatedAt = @UpdatedAt, 
+                            UpdatedBy = @UpdatedBy
+                        WHERE ID = @ID";
+
+                        List<SqlParameter> updateRoleParams = new List<SqlParameter>
+                        {
+                            new SqlParameter("@ID", _currentRole.ID),
+                            new SqlParameter("@Name", _currentRole.Name),
+                            new SqlParameter("@Description", _currentRole.Description ?? (object)DBNull.Value),
+                            new SqlParameter("@IsDefault", _currentRole.IsDefault),
+                            new SqlParameter("@IsAdmin", _currentRole.IsAdmin),
+                            new SqlParameter("@IsActive", _currentRole.IsActive),
+                            new SqlParameter("@UpdatedAt", DateTime.Now),
+                            new SqlParameter("@UpdatedBy", _sessionManager.CurrentUser?.ID ?? (object)DBNull.Value)
+                        };
+
+                        SqlCommand cmd = new SqlCommand(updateRoleQuery, connection, transaction);
+                        cmd.Parameters.AddRange(updateRoleParams.ToArray());
+                        cmd.ExecuteNonQuery();
+
+                        // حذف الصلاحيات الحالية
+                        string deletePermissionsQuery = "DELETE FROM RolePermissions WHERE RoleID = @RoleID";
+                        SqlCommand deleteCmd = new SqlCommand(deletePermissionsQuery, connection, transaction);
+                        deleteCmd.Parameters.Add(new SqlParameter("@RoleID", _currentRole.ID));
+                        deleteCmd.ExecuteNonQuery();
+                    }
+
+                    // إضافة صلاحيات الدور
+                    string insertPermissionQuery = @"
+                    INSERT INTO RolePermissions (RoleID, ModuleName, PermissionName, Description, CanView, CanAdd, CanEdit, CanDelete, CanPrint, CanExport, CanApprove)
+                    VALUES (@RoleID, @ModuleName, @PermissionName, @Description, @CanView, @CanAdd, @CanEdit, @CanDelete, @CanPrint, @CanExport, @CanApprove)";
+
+                    foreach (var permission in _modulePermissions)
+                    {
+                        SqlCommand permCmd = new SqlCommand(insertPermissionQuery, connection, transaction);
+                        permCmd.Parameters.AddRange(new SqlParameter[]
+                        {
+                            new SqlParameter("@RoleID", _currentRole.ID),
+                            new SqlParameter("@ModuleName", permission.ModuleName),
+                            new SqlParameter("@PermissionName", permission.ModuleName),
+                            new SqlParameter("@Description", permission.Description),
+                            new SqlParameter("@CanView", permission.CanView),
+                            new SqlParameter("@CanAdd", permission.CanAdd),
+                            new SqlParameter("@CanEdit", permission.CanEdit),
+                            new SqlParameter("@CanDelete", permission.CanDelete),
+                            new SqlParameter("@CanPrint", permission.CanPrint),
+                            new SqlParameter("@CanExport", permission.CanExport),
+                            new SqlParameter("@CanApprove", permission.CanApprove)
+                        });
+                        permCmd.ExecuteNonQuery();
+                    }
+                });
+
+                // عرض رسالة نجاح
+                XtraMessageBox.Show("تم حفظ بيانات الدور بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show("حدث خطأ أثناء حفظ بيانات الدور: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// حدث الضغط على زر الحفظ
+        /// </summary>
+        private void btnSave_Click(object sender, EventArgs e)
+        {
+            SaveRole();
+        }
+
+        /// <summary>
+        /// حدث الضغط على زر الإلغاء
+        /// </summary>
+        private void btnCancel_Click(object sender, EventArgs e)
+        {
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
 
         /// <summary>
@@ -131,493 +321,71 @@ namespace HR.UI.Forms.Security
         /// </summary>
         private void RoleForm_Load(object sender, EventArgs e)
         {
-            try
+            // إذا كان دور جديد، تحميل الوحدات فقط
+            if (_isNew)
             {
-                // عرض مؤشر الانتظار
-                this.Cursor = Cursors.WaitCursor;
-                
-                // تهيئة جدول الصلاحيات
-                InitializePermissionsGrid();
-                
-                // عرض بيانات الدور
-                DisplayRoleData();
-                
-                // تحديث حالة الأزرار
-                UpdateButtonState();
+                LoadModules();
+                RefreshPermissionsGrid();
             }
-            catch (Exception ex)
+
+            // تعيين عنوان النموذج
+            Text = _isNew ? "إضافة دور جديد" : "تعديل دور: " + _currentRole.Name;
+        }
+
+        /// <summary>
+        /// تغيير جميع صلاحيات الوحدة المحددة
+        /// </summary>
+        private void SetAllPermissions(int rowIndex, bool value)
+        {
+            if (rowIndex >= 0 && rowIndex < _modulePermissions.Count)
             {
-                LogManager.LogException(ex, "فشل تحميل بيانات الدور");
-                XtraMessageBox.Show(
-                    $"حدث خطأ أثناء تحميل بيانات الدور: {ex.Message}",
-                    "خطأ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-            finally
-            {
-                this.Cursor = Cursors.Default;
+                var permission = _modulePermissions[rowIndex];
+                permission.CanView = value;
+                permission.CanAdd = value;
+                permission.CanEdit = value;
+                permission.CanDelete = value;
+                permission.CanPrint = value;
+                permission.CanExport = value;
+                permission.CanApprove = value;
+
+                gridViewPermissions.RefreshData();
             }
         }
 
         /// <summary>
-        /// تهيئة جدول الصلاحيات
+        /// حدث تحديد الكل
         /// </summary>
-        private void InitializePermissionsGrid()
+        private void btnSelectAll_Click(object sender, EventArgs e)
         {
-            try
-            {
-                // إنشاء جدول البيانات للصلاحيات
-                System.Data.DataTable permissionsTable = new System.Data.DataTable();
-                permissionsTable.Columns.Add("ModuleName", typeof(string));
-                permissionsTable.Columns.Add("CanView", typeof(bool));
-                permissionsTable.Columns.Add("CanAdd", typeof(bool));
-                permissionsTable.Columns.Add("CanEdit", typeof(bool));
-                permissionsTable.Columns.Add("CanDelete", typeof(bool));
-                permissionsTable.Columns.Add("CanPrint", typeof(bool));
-                permissionsTable.Columns.Add("CanExport", typeof(bool));
-                permissionsTable.Columns.Add("CanImport", typeof(bool));
-                permissionsTable.Columns.Add("CanApprove", typeof(bool));
-                
-                // إضافة بيانات وحدات النظام
-                foreach (string moduleName in _systemModules)
-                {
-                    // البحث عن صلاحيات الوحدة الحالية
-                    RolePermission modulePermission = _permissions.Find(p => p.ModuleName == moduleName);
-                    
-                    if (modulePermission != null)
-                    {
-                        // إضافة صف بالصلاحيات الموجودة
-                        permissionsTable.Rows.Add(
-                            moduleName,
-                            modulePermission.CanView,
-                            modulePermission.CanAdd,
-                            modulePermission.CanEdit,
-                            modulePermission.CanDelete,
-                            modulePermission.CanPrint,
-                            modulePermission.CanExport,
-                            modulePermission.CanImport,
-                            modulePermission.CanApprove
-                        );
-                    }
-                    else
-                    {
-                        // إضافة صف بصلاحيات افتراضية (غير مفعلة)
-                        permissionsTable.Rows.Add(
-                            moduleName,
-                            false, false, false, false, false, false, false, false
-                        );
-                    }
-                }
-                
-                // تعيين مصدر البيانات للجدول
-                gridControlPermissions.DataSource = permissionsTable;
-                
-                // تسجيل حدث تغيير قيمة خلية
-                gridViewPermissions.CellValueChanged += GridViewPermissions_CellValueChanged;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل تهيئة جدول الصلاحيات");
-                throw;
-            }
+            // تحديد جميع الصلاحيات للصف المحدد
+            int rowIndex = gridViewPermissions.FocusedRowHandle;
+            SetAllPermissions(rowIndex, true);
         }
 
         /// <summary>
-        /// عرض بيانات الدور في النموذج
+        /// حدث إلغاء تحديد الكل
         /// </summary>
-        private void DisplayRoleData()
+        private void btnUnselectAll_Click(object sender, EventArgs e)
         {
-            if (_role == null)
-                return;
-            
-            // عرض البيانات في الحقول
-            textEditName.Text = _role.Name;
-            memoEditDescription.Text = _role.Description;
-            
-            // إعادة تعيين حالة التغييرات
-            _hasChanges = false;
+            // إلغاء تحديد جميع الصلاحيات للصف المحدد
+            int rowIndex = gridViewPermissions.FocusedRowHandle;
+            SetAllPermissions(rowIndex, false);
         }
+    }
 
-        /// <summary>
-        /// حدث تغيير قيمة أي عنصر تحكم
-        /// </summary>
-        private void Control_ValueChanged(object sender, EventArgs e)
-        {
-            _hasChanges = true;
-            UpdateButtonState();
-        }
-
-        /// <summary>
-        /// حدث تغيير قيمة خلية في جدول الصلاحيات
-        /// </summary>
-        private void GridViewPermissions_CellValueChanged(object sender, DevExpress.XtraGrid.Views.Base.CellValueChangedEventArgs e)
-        {
-            _hasChanges = true;
-            UpdateButtonState();
-            
-            // إذا كانت الخلية المتغيرة هي "عرض" وتم إلغاء تفعيلها
-            if (e.Column.FieldName == "CanView" && !(bool)e.Value)
-            {
-                // إلغاء تفعيل جميع الصلاحيات الأخرى للصف
-                gridViewPermissions.SetRowCellValue(e.RowHandle, "CanAdd", false);
-                gridViewPermissions.SetRowCellValue(e.RowHandle, "CanEdit", false);
-                gridViewPermissions.SetRowCellValue(e.RowHandle, "CanDelete", false);
-                gridViewPermissions.SetRowCellValue(e.RowHandle, "CanPrint", false);
-                gridViewPermissions.SetRowCellValue(e.RowHandle, "CanExport", false);
-                gridViewPermissions.SetRowCellValue(e.RowHandle, "CanImport", false);
-                gridViewPermissions.SetRowCellValue(e.RowHandle, "CanApprove", false);
-            }
-            
-            // إذا كانت الخلية المتغيرة ليست "عرض" وتم تفعيلها
-            if (e.Column.FieldName != "CanView" && (bool)e.Value)
-            {
-                // تفعيل صلاحية "عرض" للصف إذا كانت غير مفعلة
-                bool canView = (bool)gridViewPermissions.GetRowCellValue(e.RowHandle, "CanView");
-                if (!canView)
-                {
-                    gridViewPermissions.SetRowCellValue(e.RowHandle, "CanView", true);
-                }
-            }
-        }
-
-        /// <summary>
-        /// تحديث حالة الأزرار
-        /// </summary>
-        private void UpdateButtonState()
-        {
-            buttonSave.Enabled = _hasChanges && !string.IsNullOrWhiteSpace(textEditName.Text);
-        }
-
-        /// <summary>
-        /// حدث النقر على زر تحديد الكل
-        /// </summary>
-        private void ButtonSelectAll_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                // تحديد كل الصلاحيات لجميع الصفوف
-                for (int i = 0; i < gridViewPermissions.RowCount; i++)
-                {
-                    gridViewPermissions.SetRowCellValue(i, "CanView", true);
-                    gridViewPermissions.SetRowCellValue(i, "CanAdd", true);
-                    gridViewPermissions.SetRowCellValue(i, "CanEdit", true);
-                    gridViewPermissions.SetRowCellValue(i, "CanDelete", true);
-                    gridViewPermissions.SetRowCellValue(i, "CanPrint", true);
-                    gridViewPermissions.SetRowCellValue(i, "CanExport", true);
-                    gridViewPermissions.SetRowCellValue(i, "CanImport", true);
-                    gridViewPermissions.SetRowCellValue(i, "CanApprove", true);
-                }
-                
-                _hasChanges = true;
-                UpdateButtonState();
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل تحديد كل الصلاحيات");
-                XtraMessageBox.Show(
-                    $"حدث خطأ أثناء تحديد كل الصلاحيات: {ex.Message}",
-                    "خطأ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// حدث النقر على زر إلغاء تحديد الكل
-        /// </summary>
-        private void ButtonDeselectAll_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                // إلغاء تحديد كل الصلاحيات لجميع الصفوف
-                for (int i = 0; i < gridViewPermissions.RowCount; i++)
-                {
-                    gridViewPermissions.SetRowCellValue(i, "CanView", false);
-                    gridViewPermissions.SetRowCellValue(i, "CanAdd", false);
-                    gridViewPermissions.SetRowCellValue(i, "CanEdit", false);
-                    gridViewPermissions.SetRowCellValue(i, "CanDelete", false);
-                    gridViewPermissions.SetRowCellValue(i, "CanPrint", false);
-                    gridViewPermissions.SetRowCellValue(i, "CanExport", false);
-                    gridViewPermissions.SetRowCellValue(i, "CanImport", false);
-                    gridViewPermissions.SetRowCellValue(i, "CanApprove", false);
-                }
-                
-                _hasChanges = true;
-                UpdateButtonState();
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل إلغاء تحديد كل الصلاحيات");
-                XtraMessageBox.Show(
-                    $"حدث خطأ أثناء إلغاء تحديد كل الصلاحيات: {ex.Message}",
-                    "خطأ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// حدث النقر على زر الحفظ
-        /// </summary>
-        private void ButtonSave_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                // التحقق من صحة البيانات
-                if (!ValidateData())
-                    return;
-                
-                // عرض مؤشر الانتظار
-                this.Cursor = Cursors.WaitCursor;
-                
-                // تحديث كائن الدور
-                UpdateRoleObject();
-                
-                // تحديث قائمة الصلاحيات
-                UpdatePermissionsList();
-                
-                // حفظ البيانات
-                SaveRoleData();
-                
-                // عرض رسالة النجاح
-                XtraMessageBox.Show(
-                    _isNewRole ? "تم إضافة الدور بنجاح" : "تم تعديل الدور بنجاح",
-                    "تم الحفظ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                
-                // إغلاق النموذج
-                this.DialogResult = DialogResult.OK;
-                this.Close();
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل حفظ بيانات الدور");
-                XtraMessageBox.Show(
-                    $"حدث خطأ أثناء حفظ بيانات الدور: {ex.Message}",
-                    "خطأ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-            finally
-            {
-                this.Cursor = Cursors.Default;
-            }
-        }
-
-        /// <summary>
-        /// التحقق من صحة البيانات
-        /// </summary>
-        private bool ValidateData()
-        {
-            // التحقق من اسم الدور
-            if (string.IsNullOrWhiteSpace(textEditName.Text))
-            {
-                XtraMessageBox.Show(
-                    "الرجاء إدخال اسم الدور",
-                    "خطأ في البيانات",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                textEditName.Focus();
-                return false;
-            }
-            
-            // التحقق من عدم وجود دور بنفس الاسم
-            using (var unitOfWork = new UnitOfWork())
-            {
-                if (_isNewRole)
-                {
-                    // في حالة الإضافة
-                    if (unitOfWork.RoleRepository.Exists(r => r.Name == textEditName.Text))
-                    {
-                        XtraMessageBox.Show(
-                            "يوجد دور آخر بنفس الاسم. الرجاء اختيار اسم مختلف",
-                            "خطأ في البيانات",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        textEditName.Focus();
-                        return false;
-                    }
-                }
-                else
-                {
-                    // في حالة التعديل
-                    if (unitOfWork.RoleRepository.Exists(r => r.Name == textEditName.Text && r.ID != _role.ID))
-                    {
-                        XtraMessageBox.Show(
-                            "يوجد دور آخر بنفس الاسم. الرجاء اختيار اسم مختلف",
-                            "خطأ في البيانات",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        textEditName.Focus();
-                        return false;
-                    }
-                }
-            }
-            
-            return true;
-        }
-
-        /// <summary>
-        /// تحديث كائن الدور
-        /// </summary>
-        private void UpdateRoleObject()
-        {
-            if (_role == null)
-                _role = new Role();
-            
-            // تحديث البيانات من الحقول
-            _role.Name = textEditName.Text;
-            _role.Description = memoEditDescription.Text;
-            
-            // تحديث تواريخ الإنشاء والتعديل
-            if (_isNewRole)
-            {
-                _role.CreatedAt = DateTime.Now;
-            }
-            
-            _role.UpdatedAt = DateTime.Now;
-        }
-
-        /// <summary>
-        /// تحديث قائمة الصلاحيات
-        /// </summary>
-        private void UpdatePermissionsList()
-        {
-            try
-            {
-                // إفراغ قائمة الصلاحيات
-                _permissions.Clear();
-                
-                // جمع البيانات من جدول الصلاحيات
-                System.Data.DataTable permissionsTable = gridControlPermissions.DataSource as System.Data.DataTable;
-                if (permissionsTable != null)
-                {
-                    foreach (System.Data.DataRow row in permissionsTable.Rows)
-                    {
-                        string moduleName = row["ModuleName"].ToString();
-                        bool canView = Convert.ToBoolean(row["CanView"]);
-                        bool canAdd = Convert.ToBoolean(row["CanAdd"]);
-                        bool canEdit = Convert.ToBoolean(row["CanEdit"]);
-                        bool canDelete = Convert.ToBoolean(row["CanDelete"]);
-                        bool canPrint = Convert.ToBoolean(row["CanPrint"]);
-                        bool canExport = Convert.ToBoolean(row["CanExport"]);
-                        bool canImport = Convert.ToBoolean(row["CanImport"]);
-                        bool canApprove = Convert.ToBoolean(row["CanApprove"]);
-                        
-                        // إنشاء كائن صلاحية جديد
-                        RolePermission permission = new RolePermission
-                        {
-                            ModuleName = moduleName,
-                            CanView = canView,
-                            CanAdd = canAdd,
-                            CanEdit = canEdit,
-                            CanDelete = canDelete,
-                            CanPrint = canPrint,
-                            CanExport = canExport,
-                            CanImport = canImport,
-                            CanApprove = canApprove
-                        };
-                        
-                        // إضافة الصلاحية إلى القائمة
-                        _permissions.Add(permission);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل تحديث قائمة الصلاحيات");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// حفظ بيانات الدور والصلاحيات
-        /// </summary>
-        private void SaveRoleData()
-        {
-            try
-            {
-                // حفظ بيانات الدور والصلاحيات في قاعدة البيانات
-                using (var unitOfWork = new UnitOfWork())
-                {
-                    if (_isNewRole)
-                    {
-                        // إضافة دور جديد
-                        unitOfWork.RoleRepository.Add(_role);
-                        unitOfWork.Complete();
-                        
-                        // تحديث معرّف الدور في الصلاحيات
-                        foreach (var permission in _permissions)
-                        {
-                            permission.RoleID = _role.ID;
-                        }
-                        
-                        // إضافة الصلاحيات
-                        unitOfWork.RoleRepository.AddPermissions(_permissions);
-                    }
-                    else
-                    {
-                        // تحديث دور موجود
-                        unitOfWork.RoleRepository.Update(_role);
-                        
-                        // حذف الصلاحيات القديمة
-                        unitOfWork.RoleRepository.DeletePermissions(_role.ID);
-                        
-                        // تحديث معرّف الدور في الصلاحيات
-                        foreach (var permission in _permissions)
-                        {
-                            permission.RoleID = _role.ID;
-                        }
-                        
-                        // إضافة الصلاحيات الجديدة
-                        unitOfWork.RoleRepository.AddPermissions(_permissions);
-                    }
-                    
-                    unitOfWork.Complete();
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل حفظ بيانات الدور والصلاحيات في قاعدة البيانات");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// حدث النقر على زر الإلغاء
-        /// </summary>
-        private void ButtonCancel_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                // التحقق من وجود تغييرات
-                if (_hasChanges)
-                {
-                    DialogResult result = XtraMessageBox.Show(
-                        "هل تريد تجاهل التغييرات؟",
-                        "تأكيد",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question);
-                    
-                    if (result == DialogResult.No)
-                        return;
-                }
-                
-                // إغلاق النموذج
-                this.DialogResult = DialogResult.Cancel;
-                this.Close();
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل إلغاء التغييرات");
-                XtraMessageBox.Show(
-                    $"حدث خطأ أثناء إلغاء التغييرات: {ex.Message}",
-                    "خطأ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-        }
+    /// <summary>
+    /// فئة مساعدة لعرض صلاحيات الوحدة
+    /// </summary>
+    public class ModulePermission
+    {
+        public string ModuleName { get; set; }
+        public string Description { get; set; }
+        public bool CanView { get; set; }
+        public bool CanAdd { get; set; }
+        public bool CanEdit { get; set; }
+        public bool CanDelete { get; set; }
+        public bool CanPrint { get; set; }
+        public bool CanExport { get; set; }
+        public bool CanApprove { get; set; }
     }
 }

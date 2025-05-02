@@ -1,140 +1,365 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
+using System.Data;
+using System.Data.SqlClient;
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using System.Windows.Forms;
 using DevExpress.XtraEditors;
+using DevExpress.XtraEditors.Controls;
 using HR.Core;
+using HR.DataAccess;
 using HR.Models;
 
 namespace HR.UI.Forms.Security
 {
     /// <summary>
-    /// نموذج إدارة المستخدمين
+    /// نموذج إدارة المستخدم
     /// </summary>
     public partial class UserForm : XtraForm
     {
-        // كائن المستخدم الحالي
-        private User _user;
-        
-        // قائمة الأدوار
-        private List<Role> _roles;
-        
-        // قائمة الموظفين
-        private List<Employee> _employees;
-        
-        // تحديد ما إذا كان هناك تغييرات
-        private bool _hasChanges = false;
-        
-        // تحديد ما إذا كانت عملية إضافة جديدة
-        private bool _isNewUser = false;
-        
-        // تحديد ما إذا كان يتم تغيير كلمة المرور
-        private bool _isChangingPassword = false;
-        
+        private readonly DatabaseContext _dbContext;
+        private readonly SessionManager _sessionManager;
+        private User _currentUser;
+        private bool _isNew = true;
+        private bool _isPasswordChanged = false;
+        private byte[] _userPhoto = null;
+
         /// <summary>
-        /// تهيئة نموذج إدارة المستخدم
+        /// إنشاء نموذج جديد
         /// </summary>
         public UserForm()
         {
             InitializeComponent();
-            
-            // إنشاء مستخدم جديد
-            _user = new User();
-            _isNewUser = true;
-            _isChangingPassword = true;
-            
-            // ضبط خصائص النموذج
-            this.Text = "إضافة مستخدم جديد";
-            
-            // تهيئة عناصر التحكم
-            InitializeControls();
-            
-            // تسجيل الأحداث
-            this.Load += UserForm_Load;
-        }
-        
-        /// <summary>
-        /// تهيئة نموذج إدارة المستخدم (تعديل مستخدم موجود)
-        /// </summary>
-        public UserForm(int userId)
-        {
-            InitializeComponent();
-            
-            // جلب المستخدم من قاعدة البيانات
-            using (var unitOfWork = new UnitOfWork())
-            {
-                _user = unitOfWork.UserRepository.GetById(userId);
-                
-                if (_user == null)
-                {
-                    // إذا لم يتم العثور على المستخدم، إنشاء مستخدم جديد
-                    _user = new User();
-                    _isNewUser = true;
-                    _isChangingPassword = true;
-                    this.Text = "إضافة مستخدم جديد";
-                }
-                else
-                {
-                    _isNewUser = false;
-                    _isChangingPassword = false;
-                    this.Text = $"تعديل المستخدم: {_user.Username}";
-                }
-            }
-            
-            // تهيئة عناصر التحكم
-            InitializeControls();
-            
-            // تسجيل الأحداث
-            this.Load += UserForm_Load;
+            _dbContext = new DatabaseContext();
+            _sessionManager = SessionManager.Instance;
+            _currentUser = new User();
         }
 
         /// <summary>
-        /// تهيئة عناصر التحكم
+        /// إنشاء نموذج لتعديل مستخدم موجود
         /// </summary>
-        private void InitializeControls()
+        /// <param name="userId">معرف المستخدم</param>
+        public UserForm(int userId) : this()
+        {
+            _isNew = false;
+            LoadUser(userId);
+        }
+
+        /// <summary>
+        /// تحميل بيانات المستخدم
+        /// </summary>
+        /// <param name="userId">معرف المستخدم</param>
+        private void LoadUser(int userId)
         {
             try
             {
-                // تسجيل أحداث التغيير للحقول
-                RegisterChangeEvents();
-                
-                // تسجيل أحداث الأزرار
-                buttonSave.Click += ButtonSave_Click;
-                buttonCancel.Click += ButtonCancel_Click;
-                checkEditChangePassword.CheckedChanged += CheckEditChangePassword_CheckedChanged;
-                
-                // إظهار/إخفاء حقول كلمة المرور بناءً على حالة الإضافة/التعديل
-                layoutControlGroupPassword.Visibility = _isChangingPassword ? 
-                    DevExpress.XtraLayout.Utils.LayoutVisibility.Always : 
-                    DevExpress.XtraLayout.Utils.LayoutVisibility.Never;
-                
-                checkEditChangePassword.Visibility = _isNewUser ? 
-                    DevExpress.XtraEditors.Controls.ControlVisibility.Never : 
-                    DevExpress.XtraEditors.Controls.ControlVisibility.Always;
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@UserID", userId)
+                };
+
+                string query = @"
+                SELECT u.*, r.Name as RoleName, e.ID as EmployeeID, e.FullName as EmployeeFullName
+                FROM Users u
+                LEFT JOIN Roles r ON u.RoleID = r.ID
+                LEFT JOIN Employees e ON u.EmployeeID = e.ID
+                WHERE u.ID = @UserID";
+
+                var dataTable = _dbContext.ExecuteReader(query, parameters);
+
+                if (dataTable.Rows.Count > 0)
+                {
+                    var row = dataTable.Rows[0];
+                    _currentUser = new User
+                    {
+                        ID = Convert.ToInt32(row["ID"]),
+                        Username = row["Username"].ToString(),
+                        PasswordHash = row["PasswordHash"].ToString(),
+                        PasswordSalt = row["PasswordSalt"].ToString(),
+                        FullName = row["FullName"].ToString(),
+                        Email = row["Email"].ToString(),
+                        Mobile = row["Mobile"].ToString(),
+                        RoleID = Convert.ToInt32(row["RoleID"]),
+                        EmployeeID = row["EmployeeID"] as int?,
+                        IsActive = Convert.ToBoolean(row["IsActive"]),
+                        LastLoginDate = row["LastLogin"] as DateTime?,
+                        FailedLoginAttempts = Convert.ToInt32(row["FailedLoginAttempts"]),
+                        IsLocked = Convert.ToBoolean(row["IsLocked"]),
+                        CreatedAt = row["CreatedAt"] as DateTime?,
+                        CreatedBy = row["CreatedBy"] as int?,
+                        UpdatedAt = row["UpdatedAt"] as DateTime?,
+                        UpdatedBy = row["UpdatedBy"] as int?
+                    };
+
+                    // تعبئة البيانات في الحقول
+                    txtUsername.Text = _currentUser.Username;
+                    txtFullName.Text = _currentUser.FullName;
+                    txtEmail.Text = _currentUser.Email;
+                    txtMobile.Text = _currentUser.Mobile;
+                    chkIsActive.Checked = _currentUser.IsActive;
+                    
+                    // تحميل الأدوار
+                    LoadRoles();
+                    if (_currentUser.RoleID > 0)
+                    {
+                        cmbRoles.EditValue = _currentUser.RoleID;
+                    }
+
+                    // تحميل الموظفين
+                    LoadEmployees();
+                    if (_currentUser.EmployeeID.HasValue)
+                    {
+                        cmbEmployees.EditValue = _currentUser.EmployeeID.Value;
+                    }
+
+                    // عرض معلومات الحساب
+                    lblCreatedAt.Text = _currentUser.CreatedAt.HasValue ? 
+                        $"تاريخ الإنشاء: {_currentUser.CreatedAt.Value.ToString("yyyy-MM-dd HH:mm:ss")}" : "";
+                    
+                    lblLastLogin.Text = _currentUser.LastLoginDate.HasValue ? 
+                        $"آخر تسجيل دخول: {_currentUser.LastLoginDate.Value.ToString("yyyy-MM-dd HH:mm:ss")}" : "لم يسجل الدخول بعد";
+                    
+                    lblLockedStatus.Text = _currentUser.IsLocked ? 
+                        "حالة الحساب: مغلق" : "حالة الحساب: مفتوح";
+                }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, "فشل تهيئة عناصر التحكم في نموذج إدارة المستخدم");
+                XtraMessageBox.Show("حدث خطأ أثناء تحميل بيانات المستخدم: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         /// <summary>
-        /// تسجيل أحداث التغيير للحقول
+        /// تحميل الأدوار
         /// </summary>
-        private void RegisterChangeEvents()
+        private void LoadRoles()
         {
-            textEditUsername.EditValueChanged += Control_ValueChanged;
-            textEditEmail.EditValueChanged += Control_ValueChanged;
-            textEditFullName.EditValueChanged += Control_ValueChanged;
-            lookUpEditRole.EditValueChanged += Control_ValueChanged;
-            lookUpEditEmployee.EditValueChanged += Control_ValueChanged;
-            checkEditIsActive.CheckedChanged += Control_ValueChanged;
-            checkEditMustChangePassword.CheckedChanged += Control_ValueChanged;
-            textEditPassword.EditValueChanged += Control_ValueChanged;
-            textEditConfirmPassword.EditValueChanged += Control_ValueChanged;
+            try
+            {
+                string query = "SELECT ID, Name FROM Roles WHERE IsActive = 1 ORDER BY Name";
+                var dataTable = _dbContext.ExecuteReader(query);
+
+                cmbRoles.Properties.DataSource = dataTable;
+                cmbRoles.Properties.DisplayMember = "Name";
+                cmbRoles.Properties.ValueMember = "ID";
+                cmbRoles.Properties.PopulateColumns();
+                cmbRoles.Properties.Columns["ID"].Visible = false;
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show("حدث خطأ أثناء تحميل الأدوار: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// تحميل الموظفين
+        /// </summary>
+        private void LoadEmployees()
+        {
+            try
+            {
+                string query = @"
+                SELECT ID, FullName, EmployeeNumber
+                FROM Employees
+                WHERE Status = 'Active'
+                ORDER BY FullName";
+
+                var dataTable = _dbContext.ExecuteReader(query);
+
+                cmbEmployees.Properties.DataSource = dataTable;
+                cmbEmployees.Properties.DisplayMember = "FullName";
+                cmbEmployees.Properties.ValueMember = "ID";
+                cmbEmployees.Properties.PopulateColumns();
+                cmbEmployees.Properties.Columns["ID"].Visible = false;
+                
+                // إضافة خيار "بدون موظف مرتبط"
+                DataRow nullRow = dataTable.NewRow();
+                nullRow["ID"] = DBNull.Value;
+                nullRow["FullName"] = "-- بدون موظف مرتبط --";
+                nullRow["EmployeeNumber"] = "";
+                dataTable.Rows.InsertAt(nullRow, 0);
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show("حدث خطأ أثناء تحميل الموظفين: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// حفظ بيانات المستخدم
+        /// </summary>
+        private void SaveUser()
+        {
+            try
+            {
+                // التحقق من صحة البيانات
+                if (string.IsNullOrWhiteSpace(txtUsername.Text))
+                {
+                    XtraMessageBox.Show("يرجى إدخال اسم المستخدم", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtUsername.Focus();
+                    return;
+                }
+
+                if (_isNew && string.IsNullOrWhiteSpace(txtPassword.Text))
+                {
+                    XtraMessageBox.Show("يرجى إدخال كلمة المرور", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtPassword.Focus();
+                    return;
+                }
+
+                if (_isNew && txtPassword.Text != txtConfirmPassword.Text)
+                {
+                    XtraMessageBox.Show("كلمة المرور وتأكيدها غير متطابقين", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtConfirmPassword.Focus();
+                    return;
+                }
+
+                if (cmbRoles.EditValue == null)
+                {
+                    XtraMessageBox.Show("يرجى اختيار الدور", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    cmbRoles.Focus();
+                    return;
+                }
+
+                // تحديث بيانات المستخدم
+                _currentUser.Username = txtUsername.Text;
+                _currentUser.FullName = txtFullName.Text;
+                _currentUser.Email = txtEmail.Text;
+                _currentUser.Mobile = txtMobile.Text;
+                _currentUser.RoleID = Convert.ToInt32(cmbRoles.EditValue);
+                _currentUser.EmployeeID = cmbEmployees.EditValue != null && cmbEmployees.EditValue != DBNull.Value ? 
+                    Convert.ToInt32(cmbEmployees.EditValue) : (int?)null;
+                _currentUser.IsActive = chkIsActive.Checked;
+
+                // إذا كان مستخدم جديد أو تم تغيير كلمة المرور
+                if (_isNew || _isPasswordChanged)
+                {
+                    _currentUser.PasswordSalt = _sessionManager.GenerateSalt();
+                    _currentUser.PasswordHash = _sessionManager.HashPassword(txtPassword.Text, _currentUser.PasswordSalt);
+                }
+
+                // بدء المعاملة
+                _dbContext.ExecuteTransaction((connection, transaction) =>
+                {
+                    if (_isNew)
+                    {
+                        // إضافة مستخدم جديد
+                        string insertUserQuery = @"
+                        INSERT INTO Users (
+                            Username, PasswordHash, PasswordSalt, FullName, Email, Mobile, 
+                            RoleID, EmployeeID, IsActive, MustChangePassword, 
+                            CreatedAt, CreatedBy
+                        )
+                        VALUES (
+                            @Username, @PasswordHash, @PasswordSalt, @FullName, @Email, @Mobile, 
+                            @RoleID, @EmployeeID, @IsActive, @MustChangePassword, 
+                            @CreatedAt, @CreatedBy
+                        );
+                        SELECT SCOPE_IDENTITY();";
+
+                        List<SqlParameter> insertUserParams = new List<SqlParameter>
+                        {
+                            new SqlParameter("@Username", _currentUser.Username),
+                            new SqlParameter("@PasswordHash", _currentUser.PasswordHash),
+                            new SqlParameter("@PasswordSalt", _currentUser.PasswordSalt),
+                            new SqlParameter("@FullName", _currentUser.FullName ?? (object)DBNull.Value),
+                            new SqlParameter("@Email", _currentUser.Email ?? (object)DBNull.Value),
+                            new SqlParameter("@Mobile", _currentUser.Mobile ?? (object)DBNull.Value),
+                            new SqlParameter("@RoleID", _currentUser.RoleID),
+                            new SqlParameter("@EmployeeID", _currentUser.EmployeeID ?? (object)DBNull.Value),
+                            new SqlParameter("@IsActive", _currentUser.IsActive),
+                            new SqlParameter("@MustChangePassword", chkMustChangePassword.Checked),
+                            new SqlParameter("@CreatedAt", DateTime.Now),
+                            new SqlParameter("@CreatedBy", _sessionManager.CurrentUser?.ID ?? (object)DBNull.Value)
+                        };
+
+                        // تنفيذ الاستعلام وإرجاع المعرف الجديد
+                        SqlCommand cmd = new SqlCommand(insertUserQuery, connection, transaction);
+                        cmd.Parameters.AddRange(insertUserParams.ToArray());
+                        _currentUser.ID = Convert.ToInt32(cmd.ExecuteScalar());
+                    }
+                    else
+                    {
+                        // تحديث مستخدم موجود
+                        string updateUserQuery = @"
+                        UPDATE Users 
+                        SET Username = @Username, 
+                            FullName = @FullName, 
+                            Email = @Email, 
+                            Mobile = @Mobile, 
+                            RoleID = @RoleID, 
+                            EmployeeID = @EmployeeID, 
+                            IsActive = @IsActive,
+                            UpdatedAt = @UpdatedAt, 
+                            UpdatedBy = @UpdatedBy";
+
+                        // إضافة تحديث كلمة المرور إذا تم تغييرها
+                        if (_isPasswordChanged)
+                        {
+                            updateUserQuery += @",
+                            PasswordHash = @PasswordHash,
+                            PasswordSalt = @PasswordSalt,
+                            MustChangePassword = @MustChangePassword,
+                            LastPasswordChange = @LastPasswordChange";
+                        }
+
+                        updateUserQuery += " WHERE ID = @ID";
+
+                        List<SqlParameter> updateUserParams = new List<SqlParameter>
+                        {
+                            new SqlParameter("@ID", _currentUser.ID),
+                            new SqlParameter("@Username", _currentUser.Username),
+                            new SqlParameter("@FullName", _currentUser.FullName ?? (object)DBNull.Value),
+                            new SqlParameter("@Email", _currentUser.Email ?? (object)DBNull.Value),
+                            new SqlParameter("@Mobile", _currentUser.Mobile ?? (object)DBNull.Value),
+                            new SqlParameter("@RoleID", _currentUser.RoleID),
+                            new SqlParameter("@EmployeeID", _currentUser.EmployeeID ?? (object)DBNull.Value),
+                            new SqlParameter("@IsActive", _currentUser.IsActive),
+                            new SqlParameter("@UpdatedAt", DateTime.Now),
+                            new SqlParameter("@UpdatedBy", _sessionManager.CurrentUser?.ID ?? (object)DBNull.Value)
+                        };
+
+                        // إضافة بارامترات كلمة المرور إذا تم تغييرها
+                        if (_isPasswordChanged)
+                        {
+                            updateUserParams.Add(new SqlParameter("@PasswordHash", _currentUser.PasswordHash));
+                            updateUserParams.Add(new SqlParameter("@PasswordSalt", _currentUser.PasswordSalt));
+                            updateUserParams.Add(new SqlParameter("@MustChangePassword", chkMustChangePassword.Checked));
+                            updateUserParams.Add(new SqlParameter("@LastPasswordChange", DateTime.Now));
+                        }
+
+                        SqlCommand cmd = new SqlCommand(updateUserQuery, connection, transaction);
+                        cmd.Parameters.AddRange(updateUserParams.ToArray());
+                        cmd.ExecuteNonQuery();
+                    }
+                });
+
+                // عرض رسالة نجاح
+                XtraMessageBox.Show("تم حفظ بيانات المستخدم بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            catch (Exception ex)
+            {
+                XtraMessageBox.Show("حدث خطأ أثناء حفظ بيانات المستخدم: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// حدث الضغط على زر الحفظ
+        /// </summary>
+        private void btnSave_Click(object sender, EventArgs e)
+        {
+            SaveUser();
+        }
+
+        /// <summary>
+        /// حدث الضغط على زر الإلغاء
+        /// </summary>
+        private void btnCancel_Click(object sender, EventArgs e)
+        {
+            DialogResult = DialogResult.Cancel;
+            Close();
         }
 
         /// <summary>
@@ -142,492 +367,228 @@ namespace HR.UI.Forms.Security
         /// </summary>
         private void UserForm_Load(object sender, EventArgs e)
         {
-            try
+            // تحميل الأدوار والموظفين إذا كان مستخدم جديد
+            if (_isNew)
             {
-                // عرض مؤشر الانتظار
-                this.Cursor = Cursors.WaitCursor;
-                
-                // جلب الأدوار والموظفين
                 LoadRoles();
                 LoadEmployees();
                 
-                // عرض بيانات المستخدم
-                DisplayUserData();
+                // تفعيل خيار تغيير كلمة المرور عند أول تسجيل دخول
+                chkMustChangePassword.Checked = true;
+            }
+            else
+            {
+                // تعطيل تغيير اسم المستخدم
+                txtUsername.ReadOnly = true;
+                txtUsername.Properties.ReadOnly = true;
                 
-                // تحديث حالة الأزرار
-                UpdateButtonState();
+                // إخفاء خيار تغيير كلمة المرور عند أول تسجيل دخول
+                chkMustChangePassword.Visible = false;
             }
-            catch (Exception ex)
+
+            // تغيير مجموعة كلمة المرور حسب حالة المستخدم
+            groupPassword.Text = _isNew ? "كلمة المرور" : "تغيير كلمة المرور (اتركها فارغة إذا لم ترغب في تغييرها)";
+            
+            // تعيين عنوان النموذج
+            Text = _isNew ? "إضافة مستخدم جديد" : "تعديل مستخدم: " + _currentUser.Username;
+        }
+
+        /// <summary>
+        /// حدث تغيير النص في حقل كلمة المرور
+        /// </summary>
+        private void txtPassword_TextChanged(object sender, EventArgs e)
+        {
+            if (!_isNew && !string.IsNullOrEmpty(txtPassword.Text))
             {
-                LogManager.LogException(ex, "فشل تحميل بيانات المستخدم");
-                XtraMessageBox.Show(
-                    $"حدث خطأ أثناء تحميل بيانات المستخدم: {ex.Message}",
-                    "خطأ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                _isPasswordChanged = true;
+                txtConfirmPassword.Enabled = true;
             }
-            finally
+            else if (!_isNew && string.IsNullOrEmpty(txtPassword.Text))
             {
-                this.Cursor = Cursors.Default;
+                _isPasswordChanged = false;
+                txtConfirmPassword.Text = "";
+                txtConfirmPassword.Enabled = false;
             }
         }
 
         /// <summary>
-        /// جلب الأدوار
+        /// حدث تغيير النص في حقل تأكيد كلمة المرور
         /// </summary>
-        private void LoadRoles()
+        private void txtConfirmPassword_TextChanged(object sender, EventArgs e)
+        {
+            if (txtPassword.Text != txtConfirmPassword.Text)
+            {
+                lblPasswordMatch.Text = "كلمة المرور وتأكيدها غير متطابقين";
+                lblPasswordMatch.ForeColor = System.Drawing.Color.Red;
+            }
+            else
+            {
+                lblPasswordMatch.Text = "كلمة المرور وتأكيدها متطابقين";
+                lblPasswordMatch.ForeColor = System.Drawing.Color.Green;
+            }
+        }
+
+        /// <summary>
+        /// حدث تغيير النص في حقل اسم المستخدم للتحقق من وجوده مسبقاً
+        /// </summary>
+        private void txtUsername_Leave(object sender, EventArgs e)
+        {
+            if (_isNew && !string.IsNullOrEmpty(txtUsername.Text))
+            {
+                CheckUsernameExists();
+            }
+        }
+
+        /// <summary>
+        /// التحقق من وجود اسم المستخدم
+        /// </summary>
+        private void CheckUsernameExists()
         {
             try
             {
-                // جلب الأدوار من قاعدة البيانات
-                using (var unitOfWork = new UnitOfWork())
+                List<SqlParameter> parameters = new List<SqlParameter>
                 {
-                    _roles = unitOfWork.RoleRepository.GetAll();
-                    
-                    // تعيين مصدر البيانات للقائمة المنسدلة
-                    lookUpEditRole.Properties.DataSource = _roles;
-                    lookUpEditRole.Properties.DisplayMember = "Name";
-                    lookUpEditRole.Properties.ValueMember = "ID";
-                    
-                    // إضافة خيار "لا يوجد" للدور
-                    lookUpEditRole.Properties.BestFitMode = DevExpress.XtraEditors.Controls.BestFitMode.BestFit;
-                    lookUpEditRole.Properties.NullText = "اختر دور المستخدم";
+                    new SqlParameter("@Username", txtUsername.Text)
+                };
+
+                string query = "SELECT COUNT(*) FROM Users WHERE Username = @Username";
+                
+                int count = Convert.ToInt32(_dbContext.ExecuteScalar(query, parameters));
+                
+                if (count > 0)
+                {
+                    XtraMessageBox.Show("اسم المستخدم موجود بالفعل. يرجى اختيار اسم مستخدم آخر.", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    txtUsername.Focus();
+                    txtUsername.SelectAll();
                 }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, "فشل جلب الأدوار");
-                throw;
+                XtraMessageBox.Show("حدث خطأ أثناء التحقق من اسم المستخدم: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         /// <summary>
-        /// جلب الموظفين
+        /// حدث اختيار موظف
         /// </summary>
-        private void LoadEmployees()
+        private void cmbEmployees_EditValueChanged(object sender, EventArgs e)
         {
-            try
-            {
-                // جلب الموظفين من قاعدة البيانات
-                using (var unitOfWork = new UnitOfWork())
-                {
-                    // جلب الموظفين الذين ليس لديهم حسابات مستخدمين (باستثناء المستخدم الحالي في حالة التعديل)
-                    if (_isNewUser)
-                    {
-                        _employees = unitOfWork.EmployeeRepository.GetEmployeesWithoutUsers();
-                    }
-                    else
-                    {
-                        _employees = unitOfWork.EmployeeRepository.GetEmployeesWithoutUsers(_user.ID);
-                        
-                        // إضافة الموظف المرتبط بالمستخدم الحالي (إن وجد)
-                        if (_user.EmployeeID.HasValue)
-                        {
-                            var currentEmployee = unitOfWork.EmployeeRepository.GetById(_user.EmployeeID.Value);
-                            if (currentEmployee != null && !_employees.Exists(e => e.ID == currentEmployee.ID))
-                            {
-                                _employees.Add(currentEmployee);
-                            }
-                        }
-                    }
-                    
-                    // تعيين مصدر البيانات للقائمة المنسدلة
-                    lookUpEditEmployee.Properties.DataSource = _employees;
-                    lookUpEditEmployee.Properties.DisplayMember = "FullName";
-                    lookUpEditEmployee.Properties.ValueMember = "ID";
-                    
-                    // إضافة خيار "لا يوجد" للموظف
-                    lookUpEditEmployee.Properties.BestFitMode = DevExpress.XtraEditors.Controls.BestFitMode.BestFit;
-                    lookUpEditEmployee.Properties.NullText = "اختر الموظف المرتبط (اختياري)";
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل جلب الموظفين");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// عرض بيانات المستخدم في النموذج
-        /// </summary>
-        private void DisplayUserData()
-        {
-            if (_user == null)
-                return;
-            
-            // عرض البيانات في الحقول
-            textEditUsername.Text = _user.Username;
-            textEditEmail.Text = _user.Email;
-            textEditFullName.Text = _user.FullName;
-            lookUpEditRole.EditValue = _user.RoleID;
-            lookUpEditEmployee.EditValue = _user.EmployeeID;
-            checkEditIsActive.Checked = _user.IsActive;
-            checkEditMustChangePassword.Checked = _user.MustChangePassword;
-            
-            // إعادة تعيين حالة التغييرات
-            _hasChanges = false;
-        }
-
-        /// <summary>
-        /// حدث تغيير قيمة أي عنصر تحكم
-        /// </summary>
-        private void Control_ValueChanged(object sender, EventArgs e)
-        {
-            _hasChanges = true;
-            UpdateButtonState();
-        }
-
-        /// <summary>
-        /// حدث تغيير حالة مربع "تغيير كلمة المرور"
-        /// </summary>
-        private void CheckEditChangePassword_CheckedChanged(object sender, EventArgs e)
-        {
-            _isChangingPassword = checkEditChangePassword.Checked;
-            
-            // إظهار/إخفاء حقول كلمة المرور
-            layoutControlGroupPassword.Visibility = _isChangingPassword ? 
-                DevExpress.XtraLayout.Utils.LayoutVisibility.Always : 
-                DevExpress.XtraLayout.Utils.LayoutVisibility.Never;
-            
-            // مسح كلمة المرور إذا تم إخفاء الحقول
-            if (!_isChangingPassword)
-            {
-                textEditPassword.Text = "";
-                textEditConfirmPassword.Text = "";
-            }
-            
-            UpdateButtonState();
-        }
-
-        /// <summary>
-        /// تحديث حالة الأزرار
-        /// </summary>
-        private void UpdateButtonState()
-        {
-            bool isValid = !string.IsNullOrWhiteSpace(textEditUsername.Text) && 
-                          !string.IsNullOrWhiteSpace(textEditFullName.Text) && 
-                          lookUpEditRole.EditValue != null;
-            
-            // التحقق من كلمة المرور إذا كان يتم تغييرها
-            if (_isChangingPassword)
-            {
-                isValid = isValid && 
-                         !string.IsNullOrWhiteSpace(textEditPassword.Text) && 
-                         !string.IsNullOrWhiteSpace(textEditConfirmPassword.Text) && 
-                         textEditPassword.Text == textEditConfirmPassword.Text;
-            }
-            
-            buttonSave.Enabled = _hasChanges && isValid;
-        }
-
-        /// <summary>
-        /// حدث النقر على زر الحفظ
-        /// </summary>
-        private void ButtonSave_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                // التحقق من صحة البيانات
-                if (!ValidateData())
-                    return;
-                
-                // عرض مؤشر الانتظار
-                this.Cursor = Cursors.WaitCursor;
-                
-                // تحديث كائن المستخدم
-                UpdateUserObject();
-                
-                // حفظ البيانات
-                SaveUserData();
-                
-                // عرض رسالة النجاح
-                XtraMessageBox.Show(
-                    _isNewUser ? "تم إضافة المستخدم بنجاح" : "تم تعديل المستخدم بنجاح",
-                    "تم الحفظ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                
-                // إغلاق النموذج
-                this.DialogResult = DialogResult.OK;
-                this.Close();
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل حفظ بيانات المستخدم");
-                XtraMessageBox.Show(
-                    $"حدث خطأ أثناء حفظ بيانات المستخدم: {ex.Message}",
-                    "خطأ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-            finally
-            {
-                this.Cursor = Cursors.Default;
-            }
-        }
-
-        /// <summary>
-        /// التحقق من صحة البيانات
-        /// </summary>
-        private bool ValidateData()
-        {
-            // التحقق من اسم المستخدم
-            if (string.IsNullOrWhiteSpace(textEditUsername.Text))
-            {
-                XtraMessageBox.Show(
-                    "الرجاء إدخال اسم المستخدم",
-                    "خطأ في البيانات",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                textEditUsername.Focus();
-                return false;
-            }
-            
-            // التحقق من الاسم الكامل
-            if (string.IsNullOrWhiteSpace(textEditFullName.Text))
-            {
-                XtraMessageBox.Show(
-                    "الرجاء إدخال الاسم الكامل",
-                    "خطأ في البيانات",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                textEditFullName.Focus();
-                return false;
-            }
-            
-            // التحقق من الدور
-            if (lookUpEditRole.EditValue == null)
-            {
-                XtraMessageBox.Show(
-                    "الرجاء اختيار دور المستخدم",
-                    "خطأ في البيانات",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Warning);
-                lookUpEditRole.Focus();
-                return false;
-            }
-            
-            // التحقق من صحة البريد الإلكتروني إذا كان مدخلاً
-            if (!string.IsNullOrWhiteSpace(textEditEmail.Text))
+            if (cmbEmployees.EditValue != null && cmbEmployees.EditValue != DBNull.Value)
             {
                 try
                 {
-                    var addr = new System.Net.Mail.MailAddress(textEditEmail.Text);
-                }
-                catch
-                {
-                    XtraMessageBox.Show(
-                        "الرجاء إدخال عنوان بريد إلكتروني صحيح",
-                        "خطأ في البيانات",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    textEditEmail.Focus();
-                    return false;
-                }
-            }
-            
-            // التحقق من كلمة المرور إذا كان يتم تغييرها
-            if (_isChangingPassword)
-            {
-                if (string.IsNullOrWhiteSpace(textEditPassword.Text))
-                {
-                    XtraMessageBox.Show(
-                        "الرجاء إدخال كلمة المرور",
-                        "خطأ في البيانات",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    textEditPassword.Focus();
-                    return false;
-                }
-                
-                if (textEditPassword.Text.Length < 8)
-                {
-                    XtraMessageBox.Show(
-                        "يجب أن تكون كلمة المرور 8 أحرف على الأقل",
-                        "خطأ في البيانات",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    textEditPassword.Focus();
-                    return false;
-                }
-                
-                if (string.IsNullOrWhiteSpace(textEditConfirmPassword.Text))
-                {
-                    XtraMessageBox.Show(
-                        "الرجاء تأكيد كلمة المرور",
-                        "خطأ في البيانات",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    textEditConfirmPassword.Focus();
-                    return false;
-                }
-                
-                if (textEditPassword.Text != textEditConfirmPassword.Text)
-                {
-                    XtraMessageBox.Show(
-                        "كلمة المرور وتأكيدها غير متطابقين",
-                        "خطأ في البيانات",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    textEditConfirmPassword.Focus();
-                    return false;
-                }
-            }
-            
-            // التحقق من عدم وجود مستخدم بنفس اسم المستخدم
-            using (var unitOfWork = new UnitOfWork())
-            {
-                if (_isNewUser)
-                {
-                    // في حالة الإضافة
-                    if (unitOfWork.UserRepository.Exists(u => u.Username == textEditUsername.Text))
+                    int employeeId = Convert.ToInt32(cmbEmployees.EditValue);
+                    var selectedRow = ((DataTable)cmbEmployees.Properties.DataSource).Select($"ID = {employeeId}");
+                    
+                    if (selectedRow.Length > 0)
                     {
-                        XtraMessageBox.Show(
-                            "يوجد مستخدم آخر بنفس اسم المستخدم. الرجاء اختيار اسم مستخدم مختلف",
-                            "خطأ في البيانات",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        textEditUsername.Focus();
-                        return false;
+                        // تلقائياً تعبئة اسم المستخدم من رقم الموظف إذا كان فارغاً
+                        if (string.IsNullOrEmpty(txtUsername.Text) && !txtUsername.ReadOnly)
+                        {
+                            string employeeNumber = selectedRow[0]["EmployeeNumber"].ToString();
+                            if (!string.IsNullOrEmpty(employeeNumber))
+                            {
+                                txtUsername.Text = "emp" + employeeNumber;
+                            }
+                        }
+
+                        // تلقائياً تعبئة الاسم الكامل من اسم الموظف إذا كان فارغاً
+                        if (string.IsNullOrEmpty(txtFullName.Text))
+                        {
+                            txtFullName.Text = selectedRow[0]["FullName"].ToString();
+                        }
+
+                        // تحميل صورة الموظف
+                        LoadEmployeePhoto(employeeId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    XtraMessageBox.Show("حدث خطأ: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        /// <summary>
+        /// تحميل صورة الموظف
+        /// </summary>
+        private void LoadEmployeePhoto(int employeeId)
+        {
+            try
+            {
+                List<SqlParameter> parameters = new List<SqlParameter>
+                {
+                    new SqlParameter("@EmployeeID", employeeId)
+                };
+
+                string query = "SELECT Photo FROM Employees WHERE ID = @EmployeeID";
+                
+                var result = _dbContext.ExecuteScalar(query, parameters);
+                
+                if (result != null && result != DBNull.Value)
+                {
+                    _userPhoto = (byte[])result;
+                    using (MemoryStream ms = new MemoryStream(_userPhoto))
+                    {
+                        pictureEdit1.Image = System.Drawing.Image.FromStream(ms);
                     }
                 }
                 else
                 {
-                    // في حالة التعديل
-                    if (unitOfWork.UserRepository.Exists(u => u.Username == textEditUsername.Text && u.ID != _user.ID))
-                    {
-                        XtraMessageBox.Show(
-                            "يوجد مستخدم آخر بنفس اسم المستخدم. الرجاء اختيار اسم مستخدم مختلف",
-                            "خطأ في البيانات",
-                            MessageBoxButtons.OK,
-                            MessageBoxIcon.Warning);
-                        textEditUsername.Focus();
-                        return false;
-                    }
-                }
-            }
-            
-            return true;
-        }
-
-        /// <summary>
-        /// تحديث كائن المستخدم
-        /// </summary>
-        private void UpdateUserObject()
-        {
-            if (_user == null)
-                _user = new User();
-            
-            // تحديث البيانات من الحقول
-            _user.Username = textEditUsername.Text;
-            _user.Email = textEditEmail.Text;
-            _user.FullName = textEditFullName.Text;
-            _user.RoleID = Convert.ToInt32(lookUpEditRole.EditValue);
-            _user.EmployeeID = lookUpEditEmployee.EditValue != null ? 
-                Convert.ToInt32(lookUpEditEmployee.EditValue) : (int?)null;
-            _user.IsActive = checkEditIsActive.Checked;
-            _user.MustChangePassword = checkEditMustChangePassword.Checked;
-            
-            // تحديث كلمة المرور إذا كان يتم تغييرها
-            if (_isChangingPassword)
-            {
-                // إنشاء ملح عشوائي
-                byte[] salt = new byte[16];
-                using (var rng = new RNGCryptoServiceProvider())
-                {
-                    rng.GetBytes(salt);
-                }
-                
-                // تشفير كلمة المرور باستخدام الملح
-                byte[] passwordHash;
-                using (var pbkdf2 = new Rfc2898DeriveBytes(textEditPassword.Text, salt, 10000))
-                {
-                    passwordHash = pbkdf2.GetBytes(20);
-                }
-                
-                // تخزين الملح وكلمة المرور المشفرة
-                _user.PasswordSalt = Convert.ToBase64String(salt);
-                _user.PasswordHash = Convert.ToBase64String(passwordHash);
-                _user.LastPasswordChange = DateTime.Now;
-            }
-            
-            // تحديث تواريخ الإنشاء والتعديل
-            if (_isNewUser)
-            {
-                _user.CreatedAt = DateTime.Now;
-                _user.CreatedBy = SessionManager.CurrentUser?.ID;
-                _user.FailedLoginAttempts = 0;
-                _user.IsLocked = false;
-            }
-            
-            _user.UpdatedAt = DateTime.Now;
-            _user.UpdatedBy = SessionManager.CurrentUser?.ID;
-        }
-
-        /// <summary>
-        /// حفظ بيانات المستخدم
-        /// </summary>
-        private void SaveUserData()
-        {
-            try
-            {
-                // حفظ بيانات المستخدم في قاعدة البيانات
-                using (var unitOfWork = new UnitOfWork())
-                {
-                    if (_isNewUser)
-                    {
-                        // إضافة مستخدم جديد
-                        unitOfWork.UserRepository.Add(_user);
-                    }
-                    else
-                    {
-                        // تحديث مستخدم موجود
-                        unitOfWork.UserRepository.Update(_user);
-                    }
-                    
-                    unitOfWork.Complete();
+                    pictureEdit1.Image = null;
                 }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, "فشل حفظ بيانات المستخدم في قاعدة البيانات");
-                throw;
+                XtraMessageBox.Show("حدث خطأ أثناء تحميل صورة الموظف: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         /// <summary>
-        /// حدث النقر على زر الإلغاء
+        /// حدث إلغاء قفل حساب المستخدم
         /// </summary>
-        private void ButtonCancel_Click(object sender, EventArgs e)
+        private void btnUnlockAccount_Click(object sender, EventArgs e)
         {
             try
             {
-                // التحقق من وجود تغييرات
-                if (_hasChanges)
+                if (_isNew || !_currentUser.IsLocked)
                 {
-                    DialogResult result = XtraMessageBox.Show(
-                        "هل تريد تجاهل التغييرات؟",
-                        "تأكيد",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question);
-                    
-                    if (result == DialogResult.No)
-                        return;
+                    return;
                 }
-                
-                // إغلاق النموذج
-                this.DialogResult = DialogResult.Cancel;
-                this.Close();
+
+                // تأكيد إلغاء قفل الحساب
+                if (XtraMessageBox.Show("هل أنت متأكد من إلغاء قفل حساب المستخدم؟", "تأكيد", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                {
+                    List<SqlParameter> parameters = new List<SqlParameter>
+                    {
+                        new SqlParameter("@UserID", _currentUser.ID)
+                    };
+
+                    string query = @"
+                    UPDATE Users 
+                    SET IsLocked = 0,
+                        LockoutEnd = NULL,
+                        FailedLoginAttempts = 0,
+                        UpdatedAt = @UpdatedAt,
+                        UpdatedBy = @UpdatedBy
+                    WHERE ID = @UserID";
+
+                    parameters.Add(new SqlParameter("@UpdatedAt", DateTime.Now));
+                    parameters.Add(new SqlParameter("@UpdatedBy", _sessionManager.CurrentUser?.ID ?? (object)DBNull.Value));
+
+                    int result = _dbContext.ExecuteNonQuery(query, parameters);
+
+                    if (result > 0)
+                    {
+                        XtraMessageBox.Show("تم إلغاء قفل حساب المستخدم بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        _currentUser.IsLocked = false;
+                        lblLockedStatus.Text = "حالة الحساب: مفتوح";
+                    }
+                }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, "فشل إلغاء التغييرات");
-                XtraMessageBox.Show(
-                    $"حدث خطأ أثناء إلغاء التغييرات: {ex.Message}",
-                    "خطأ",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                XtraMessageBox.Show("حدث خطأ أثناء إلغاء قفل حساب المستخدم: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
     }
