@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Generic;
 
-namespace HR.Models
+namespace HR.Models.DTOs
 {
     #region Company
 
     /// <summary>
-    /// Company information DTO
+    /// Company DTO
     /// </summary>
     public class CompanyDTO
     {
@@ -24,9 +24,23 @@ namespace HR.Models
         public string Notes { get; set; }
     }
 
+    /// <summary>
+    /// Company settings summary DTO
+    /// </summary>
+    public class CompanySummaryDTO
+    {
+        public int ID { get; set; }
+        public string Name { get; set; }
+        public string LegalName { get; set; }
+        public byte[] Logo { get; set; }
+        public string Address { get; set; }
+        public string Phone { get; set; }
+        public string Email { get; set; }
+    }
+
     #endregion
 
-    #region Departments
+    #region Department
 
     /// <summary>
     /// Department DTO
@@ -42,25 +56,38 @@ namespace HR.Models
         public string ManagerPositionTitle { get; set; }
         public string Location { get; set; }
         public bool IsActive { get; set; }
+        public int EmployeeCount { get; set; }
         public List<DepartmentDTO> ChildDepartments { get; set; }
     }
 
     /// <summary>
-    /// Department tree node DTO (for tree views)
+    /// Department lite DTO (for dropdowns and simple lists)
     /// </summary>
-    public class DepartmentTreeNodeDTO
+    public class DepartmentLiteDTO
     {
         public int ID { get; set; }
         public string Name { get; set; }
         public int? ParentID { get; set; }
-        public bool HasChildren { get; set; }
         public bool IsActive { get; set; }
-        public List<DepartmentTreeNodeDTO> Children { get; set; }
+    }
+
+    /// <summary>
+    /// Department organizational structure DTO
+    /// </summary>
+    public class DepartmentOrgStructureDTO
+    {
+        public int ID { get; set; }
+        public string Name { get; set; }
+        public int? ParentID { get; set; }
+        public int? ManagerID { get; set; }
+        public string ManagerName { get; set; }
+        public int EmployeeCount { get; set; }
+        public List<DepartmentOrgStructureDTO> Children { get; set; }
     }
 
     #endregion
 
-    #region Positions
+    #region Position
 
     /// <summary>
     /// Position DTO
@@ -77,59 +104,25 @@ namespace HR.Models
         public decimal? MaxSalary { get; set; }
         public bool IsManagerPosition { get; set; }
         public bool IsActive { get; set; }
+        public int EmployeeCount { get; set; }
     }
 
-    #endregion
-
-    #region Roles and Permissions
-
     /// <summary>
-    /// Role DTO
+    /// Position lite DTO (for dropdowns and simple lists)
     /// </summary>
-    public class RoleDTO
+    public class PositionLiteDTO
     {
         public int ID { get; set; }
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public int UserCount { get; set; }
-        public List<RolePermissionDTO> Permissions { get; set; }
-    }
-
-    /// <summary>
-    /// Role permission DTO
-    /// </summary>
-    public class RolePermissionDTO
-    {
-        public int ID { get; set; }
-        public int RoleID { get; set; }
-        public string ModuleName { get; set; }
-        public bool CanView { get; set; }
-        public bool CanAdd { get; set; }
-        public bool CanEdit { get; set; }
-        public bool CanDelete { get; set; }
-        public bool CanPrint { get; set; }
-        public bool CanExport { get; set; }
-        public bool CanImport { get; set; }
-        public bool CanApprove { get; set; }
-    }
-
-    /// <summary>
-    /// Module DTO
-    /// </summary>
-    public class ModuleDTO
-    {
-        public string Name { get; set; }
-        public string DisplayName { get; set; }
-        public string Description { get; set; }
-        public string Group { get; set; }
-        public int Order { get; set; }
-        public string Icon { get; set; }
+        public string Title { get; set; }
+        public int? DepartmentID { get; set; }
+        public string DepartmentName { get; set; }
+        public bool IsManagerPosition { get; set; }
         public bool IsActive { get; set; }
     }
 
     #endregion
 
-    #region Users
+    #region User
 
     /// <summary>
     /// User DTO
@@ -143,12 +136,10 @@ namespace HR.Models
         public int? RoleID { get; set; }
         public string RoleName { get; set; }
         public int? EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public bool IsActive { get; set; }
         public bool MustChangePassword { get; set; }
         public DateTime? LastLogin { get; set; }
-        public DateTime? LastPasswordChange { get; set; }
-        public int FailedLoginAttempts { get; set; }
         public bool IsLocked { get; set; }
         public DateTime? LockoutEnd { get; set; }
     }
@@ -177,26 +168,35 @@ namespace HR.Models
         public string Email { get; set; }
         public string FullName { get; set; }
         public int? RoleID { get; set; }
-        public int? EmployeeID { get; set; }
         public bool IsActive { get; set; }
         public bool MustChangePassword { get; set; }
     }
 
     /// <summary>
-    /// Password change DTO
+    /// Change password DTO
     /// </summary>
-    public class PasswordChangeDTO
+    public class ChangePasswordDTO
     {
         public int UserID { get; set; }
-        public string OldPassword { get; set; }
+        public string CurrentPassword { get; set; }
         public string NewPassword { get; set; }
         public string ConfirmPassword { get; set; }
     }
 
     /// <summary>
-    /// Login DTO
+    /// Reset password DTO
     /// </summary>
-    public class LoginDTO
+    public class ResetPasswordDTO
+    {
+        public int UserID { get; set; }
+        public string NewPassword { get; set; }
+        public bool MustChangePassword { get; set; }
+    }
+
+    /// <summary>
+    /// User login DTO
+    /// </summary>
+    public class UserLoginDTO
     {
         public string Username { get; set; }
         public string Password { get; set; }
@@ -204,50 +204,70 @@ namespace HR.Models
     }
 
     /// <summary>
-    /// Login history DTO
+    /// User authentication result DTO
     /// </summary>
-    public class LoginHistoryDTO
+    public class AuthResultDTO
     {
-        public int ID { get; set; }
-        public int? UserID { get; set; }
-        public string Username { get; set; }
-        public string FullName { get; set; }
-        public DateTime LoginTime { get; set; }
-        public DateTime? LogoutTime { get; set; }
-        public string IPAddress { get; set; }
-        public string MachineName { get; set; }
-        public string LoginStatus { get; set; }
-        public string UserAgent { get; set; }
-    }
-
-    /// <summary>
-    /// Activity log DTO
-    /// </summary>
-    public class ActivityLogDTO
-    {
-        public int ID { get; set; }
-        public int? UserID { get; set; }
-        public string Username { get; set; }
-        public string FullName { get; set; }
-        public DateTime ActivityDate { get; set; }
-        public string ActivityType { get; set; }
-        public string ModuleName { get; set; }
-        public string Description { get; set; }
-        public string IPAddress { get; set; }
-        public int? RecordID { get; set; }
-        public string OldValues { get; set; }
-        public string NewValues { get; set; }
+        public bool IsAuthenticated { get; set; }
+        public string Message { get; set; }
+        public UserDTO User { get; set; }
+        public List<string> Permissions { get; set; }
     }
 
     #endregion
 
-    #region Employees
+    #region Role
+
+    /// <summary>
+    /// Role DTO
+    /// </summary>
+    public class RoleDTO
+    {
+        public int ID { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+        public int UserCount { get; set; }
+        public List<RolePermissionDTO> Permissions { get; set; }
+    }
+
+    /// <summary>
+    /// Role lite DTO (for dropdowns and simple lists)
+    /// </summary>
+    public class RoleLiteDTO
+    {
+        public int ID { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
+    }
+
+    /// <summary>
+    /// Role permission DTO
+    /// </summary>
+    public class RolePermissionDTO
+    {
+        public int ID { get; set; }
+        public int RoleID { get; set; }
+        public string ModuleName { get; set; }
+        public bool CanView { get; set; }
+        public bool CanAdd { get; set; }
+        public bool CanEdit { get; set; }
+        public bool CanDelete { get; set; }
+        public bool CanPrint { get; set; }
+        public bool CanExport { get; set; }
+        public bool CanImport { get; set; }
+        public bool CanApprove { get; set; }
+    }
+
+    #endregion
+
+    #region Employee
 
     /// <summary>
     /// Employee DTO
     /// </summary>
     public class EmployeeDTO
     {
+        // Basic info
         public int ID { get; set; }
         public string EmployeeNumber { get; set; }
         public string FirstName { get; set; }
@@ -302,24 +322,23 @@ namespace HR.Models
         public string Notes { get; set; }
         public int? BiometricID { get; set; }
 
-        // User information
-        public int? UserID { get; set; }
-        public string Username { get; set; }
+        public int ServiceYears { get; set; }
+        public int ServiceMonths { get; set; }
+        public int ServiceDays { get; set; }
     }
 
     /// <summary>
-    /// Employee list item DTO (for grid views)
+    /// Employee lite DTO (for dropdowns and simple lists)
     /// </summary>
-    public class EmployeeListItemDTO
+    public class EmployeeLiteDTO
     {
         public int ID { get; set; }
         public string EmployeeNumber { get; set; }
         public string FullName { get; set; }
+        public int? DepartmentID { get; set; }
         public string DepartmentName { get; set; }
+        public int? PositionID { get; set; }
         public string PositionTitle { get; set; }
-        public string Mobile { get; set; }
-        public string Email { get; set; }
-        public DateTime HireDate { get; set; }
         public string Status { get; set; }
         public byte[] Photo { get; set; }
     }
@@ -331,7 +350,7 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string DocumentType { get; set; }
         public string DocumentTitle { get; set; }
         public string DocumentNumber { get; set; }
@@ -341,6 +360,8 @@ namespace HR.Models
         public byte[] DocumentFile { get; set; }
         public string DocumentPath { get; set; }
         public string Notes { get; set; }
+        public bool IsExpired { get; set; }
+        public int DaysUntilExpiry { get; set; }
     }
 
     /// <summary>
@@ -350,7 +371,7 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string TransferType { get; set; }
         public int? FromDepartmentID { get; set; }
         public string FromDepartmentName { get; set; }
@@ -363,6 +384,7 @@ namespace HR.Models
         public DateTime EffectiveDate { get; set; }
         public string Reason { get; set; }
         public string Notes { get; set; }
+        public string CreatedByName { get; set; }
     }
 
     #endregion
@@ -384,6 +406,7 @@ namespace HR.Models
         public int ShortDayThresholdMinutes { get; set; }
         public int OverTimeStartMinutes { get; set; }
         public decimal TotalHours { get; set; }
+        public bool IsActive { get; set; }
     }
 
     /// <summary>
@@ -398,6 +421,7 @@ namespace HR.Models
         public string WorkHoursName { get; set; }
         public TimeSpan? StartTime { get; set; }
         public TimeSpan? EndTime { get; set; }
+        public decimal? WorkHours { get; set; }
         public bool SundayEnabled { get; set; }
         public bool MondayEnabled { get; set; }
         public bool TuesdayEnabled { get; set; }
@@ -407,6 +431,7 @@ namespace HR.Models
         public bool SaturdayEnabled { get; set; }
         public string ColorCode { get; set; }
         public bool IsActive { get; set; }
+        public int EmployeeCount { get; set; }
     }
 
     /// <summary>
@@ -424,9 +449,11 @@ namespace HR.Models
         public string Description { get; set; }
         public string Location { get; set; }
         public bool IsActive { get; set; }
+        public bool IsConnected { get; set; }
         public DateTime? LastSyncTime { get; set; }
         public string LastSyncStatus { get; set; }
         public string LastSyncErrors { get; set; }
+        public int LogCount { get; set; } 
     }
 
     /// <summary>
@@ -440,14 +467,15 @@ namespace HR.Models
         public int BiometricUserID { get; set; }
         public DateTime LogDateTime { get; set; }
         public int? LogType { get; set; }
-        public string LogTypeString { get; set; }
+        public string LogTypeDescription { get; set; }
         public int? VerifyMode { get; set; }
-        public string VerifyModeString { get; set; }
+        public string VerifyModeDescription { get; set; }
         public int? WorkCode { get; set; }
         public bool IsProcessed { get; set; }
         public bool IsMatched { get; set; }
         public int? EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
+        public string EmployeeNumber { get; set; }
         public DateTime SyncTime { get; set; }
     }
 
@@ -458,12 +486,15 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public string DepartmentName { get; set; }
+        public string PositionTitle { get; set; }
         public DateTime AttendanceDate { get; set; }
+        public string DayOfWeek { get; set; }
         public DateTime? TimeIn { get; set; }
         public DateTime? TimeOut { get; set; }
+        public TimeSpan? Duration { get; set; }
         public int? WorkHoursID { get; set; }
         public string WorkHoursName { get; set; }
         public TimeSpan? ScheduledStartTime { get; set; }
@@ -484,10 +515,11 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public string DepartmentName { get; set; }
         public DateTime PermissionDate { get; set; }
+        public string DayOfWeek { get; set; }
         public string PermissionType { get; set; }
         public TimeSpan? StartTime { get; set; }
         public TimeSpan? EndTime { get; set; }
@@ -495,37 +527,58 @@ namespace HR.Models
         public string Reason { get; set; }
         public string Status { get; set; }
         public int? ApprovedBy { get; set; }
-        public string ApproverFullName { get; set; }
+        public string ApproverName { get; set; }
         public DateTime? ApprovalDate { get; set; }
         public string Notes { get; set; }
     }
 
     /// <summary>
-    /// Employee attendance summary DTO
+    /// Daily attendance summary DTO
     /// </summary>
-    public class EmployeeAttendanceSummaryDTO
+    public class DailyAttendanceSummaryDTO
+    {
+        public DateTime AttendanceDate { get; set; }
+        public string DayOfWeek { get; set; }
+        public int TotalEmployees { get; set; }
+        public int PresentCount { get; set; }
+        public int AbsentCount { get; set; }
+        public int LateCount { get; set; }
+        public int EarlyDepartureCount { get; set; }
+        public int LeaveCount { get; set; }
+        public int AttendancePermissionCount { get; set; }
+        public List<AttendanceRecordDTO> AttendanceRecords { get; set; }
+    }
+
+    /// <summary>
+    /// Monthly attendance summary DTO (per employee)
+    /// </summary>
+    public class MonthlyAttendanceDTO
     {
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public string DepartmentName { get; set; }
-        public int TotalDays { get; set; }
+        public int Year { get; set; }
+        public int Month { get; set; }
+        public int TotalWorkDays { get; set; }
         public int PresentDays { get; set; }
         public int AbsentDays { get; set; }
         public int LateDays { get; set; }
         public int EarlyDepartureDays { get; set; }
-        public int LeaveDays { get; set; }
-        public int Holidays { get; set; }
         public int WeekendDays { get; set; }
+        public int HolidayDays { get; set; }
+        public int LeaveDays { get; set; }
         public int TotalLateMinutes { get; set; }
         public int TotalEarlyDepartureMinutes { get; set; }
         public int TotalOvertimeMinutes { get; set; }
-        public int TotalWorkedMinutes { get; set; }
+        public int TotalWorkMinutes { get; set; }
+        public decimal AttendancePercentage { get; set; }
+        public List<AttendanceRecordDTO> DailyRecords { get; set; }
     }
 
     #endregion
 
-    #region Leaves
+    #region Leave
 
     /// <summary>
     /// Leave type DTO
@@ -555,10 +608,11 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public int LeaveTypeID { get; set; }
         public string LeaveTypeName { get; set; }
+        public string LeaveTypeColor { get; set; }
         public int Year { get; set; }
         public int TotalDays { get; set; }
         public int UsedDays { get; set; }
@@ -576,11 +630,12 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public string DepartmentName { get; set; }
         public int LeaveTypeID { get; set; }
         public string LeaveTypeName { get; set; }
+        public string LeaveTypeColor { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public DateTime? ReturnDate { get; set; }
@@ -588,15 +643,32 @@ namespace HR.Models
         public string Reason { get; set; }
         public string Status { get; set; }
         public int? ApprovedBy { get; set; }
-        public string ApproverFullName { get; set; }
+        public string ApproverName { get; set; }
         public DateTime? ApprovalDate { get; set; }
         public string RejectionReason { get; set; }
         public string ContactDuringLeave { get; set; }
         public int? AlternateEmployeeID { get; set; }
-        public string AlternateEmployeeFullName { get; set; }
+        public string AlternateEmployeeName { get; set; }
         public string Notes { get; set; }
         public byte[] Attachments { get; set; }
         public string AttachmentsPath { get; set; }
+    }
+
+    /// <summary>
+    /// Employee leave summary DTO
+    /// </summary>
+    public class EmployeeLeaveSummaryDTO
+    {
+        public int EmployeeID { get; set; }
+        public string EmployeeName { get; set; }
+        public string DepartmentName { get; set; }
+        public int Year { get; set; }
+        public int TotalLeavesTaken { get; set; }
+        public int TotalLeaveDays { get; set; }
+        public int PendingLeaveRequests { get; set; }
+        public int PendingLeaveDays { get; set; }
+        public List<LeaveBalanceDTO> LeaveBalances { get; set; }
+        public List<LeaveRequestDTO> LeaveHistory { get; set; }
     }
 
     #endregion
@@ -633,7 +705,7 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public string DepartmentName { get; set; }
         public int? DeductionRuleID { get; set; }
@@ -647,7 +719,7 @@ namespace HR.Models
         public string Description { get; set; }
         public string Status { get; set; }
         public int? ApprovedBy { get; set; }
-        public string ApproverFullName { get; set; }
+        public string ApproverName { get; set; }
         public DateTime? ApprovalDate { get; set; }
         public bool IsPayrollProcessed { get; set; }
         public int? PayrollID { get; set; }
@@ -683,16 +755,37 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public string DepartmentName { get; set; }
         public string PositionTitle { get; set; }
+        public int ComponentID { get; set; }
+        public string ComponentName { get; set; }
+        public string ComponentType { get; set; }
         public DateTime EffectiveDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public decimal? Amount { get; set; }
+        public decimal? Percentage { get; set; }
         public bool IsActive { get; set; }
         public string Notes { get; set; }
+    }
+
+    /// <summary>
+    /// Employee salary summary DTO
+    /// </summary>
+    public class EmployeeSalarySummaryDTO
+    {
+        public int EmployeeID { get; set; }
+        public string EmployeeName { get; set; }
+        public string EmployeeNumber { get; set; }
+        public string DepartmentName { get; set; }
+        public string PositionTitle { get; set; }
+        public decimal BasicSalary { get; set; }
+        public decimal TotalAllowances { get; set; }
+        public decimal GrossSalary { get; set; }
+        public decimal TotalDeductions { get; set; }
+        public decimal NetSalary { get; set; }
         public List<EmployeeSalaryComponentDTO> SalaryComponents { get; set; }
-        public decimal TotalSalary { get; set; }
     }
 
     /// <summary>
@@ -701,67 +794,76 @@ namespace HR.Models
     public class EmployeeSalaryComponentDTO
     {
         public int ID { get; set; }
-        public int EmployeeSalaryID { get; set; }
-        public int SalaryComponentID { get; set; }
-        public string SalaryComponentName { get; set; }
-        public string SalaryComponentType { get; set; }
+        public int ComponentID { get; set; }
+        public string ComponentName { get; set; }
+        public string ComponentType { get; set; }
+        public string Formula { get; set; }
         public decimal? Amount { get; set; }
         public decimal? Percentage { get; set; }
-        public string Formula { get; set; }
-        public string Notes { get; set; }
+        public DateTime EffectiveDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public bool IsActive { get; set; }
     }
 
     /// <summary>
-    /// Payroll period DTO
+    /// Payroll DTO
     /// </summary>
-    public class PayrollPeriodDTO
+    public class PayrollDTO
     {
         public int ID { get; set; }
-        public string PeriodName { get; set; }
+        public string PayrollName { get; set; }
+        public string PayrollPeriod { get; set; }
+        public string PayrollType { get; set; }
+        public int PayrollMonth { get; set; }
+        public int PayrollYear { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public DateTime? PaymentDate { get; set; }
+        public int TotalEmployees { get; set; }
+        public decimal TotalBasicSalary { get; set; }
+        public decimal TotalAllowances { get; set; }
+        public decimal TotalDeductions { get; set; }
+        public decimal TotalOvertimeAmount { get; set; }
+        public decimal TotalPayrollAmount { get; set; }
         public string Status { get; set; }
+        public int? ProcessedBy { get; set; }
+        public string ProcessorName { get; set; }
+        public DateTime? ProcessedAt { get; set; }
+        public int? ApprovedBy { get; set; }
+        public string ApproverName { get; set; }
+        public DateTime? ApprovalDate { get; set; }
         public string Notes { get; set; }
-        public int NumberOfEmployees { get; set; }
-        public decimal TotalPayroll { get; set; }
     }
 
     /// <summary>
-    /// Payroll record DTO
+    /// Payroll detail DTO
     /// </summary>
-    public class PayrollRecordDTO
+    public class PayrollDetailDTO
     {
         public int ID { get; set; }
+        public int PayrollID { get; set; }
+        public string PayrollName { get; set; }
+        public string PayrollPeriod { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public string DepartmentName { get; set; }
         public string PositionTitle { get; set; }
-        public int PayrollPeriodID { get; set; }
-        public string PayrollPeriodName { get; set; }
-        public decimal BasicSalary { get; set; }
-        public decimal TotalAllowances { get; set; }
-        public decimal TotalDeductions { get; set; }
-        public decimal GrossSalary { get; set; }
-        public decimal NetSalary { get; set; }
-        public int? WorkDays { get; set; }
+        public int WorkingDays { get; set; }
+        public int PresentDays { get; set; }
         public int AbsentDays { get; set; }
         public int LeaveDays { get; set; }
+        public int LateMinutes { get; set; }
         public decimal OvertimeHours { get; set; }
+        public decimal BaseSalary { get; set; }
+        public decimal TotalAllowances { get; set; }
+        public decimal TotalDeductions { get; set; }
         public decimal OvertimeAmount { get; set; }
-        public decimal LoanDeductions { get; set; }
-        public decimal TaxAmount { get; set; }
-        public decimal SocialInsuranceAmount { get; set; }
-        public decimal OtherDeductions { get; set; }
-        public string Notes { get; set; }
+        public decimal NetSalary { get; set; }
         public string Status { get; set; }
-        public int? ApprovedBy { get; set; }
-        public string ApproverFullName { get; set; }
-        public DateTime? ApprovalDate { get; set; }
         public string PaymentMethod { get; set; }
         public string PaymentReference { get; set; }
-        public DateTime? PaymentDate { get; set; }
+        public string Notes { get; set; }
         public List<PayrollComponentDetailDTO> ComponentDetails { get; set; }
     }
 
@@ -771,12 +873,12 @@ namespace HR.Models
     public class PayrollComponentDetailDTO
     {
         public int ID { get; set; }
-        public int PayrollRecordID { get; set; }
-        public int SalaryComponentID { get; set; }
+        public int PayrollDetailID { get; set; }
+        public int ComponentID { get; set; }
         public string ComponentName { get; set; }
+        public string ComponentType { get; set; }
         public decimal Amount { get; set; }
-        public string Type { get; set; }
-        public string Notes { get; set; }
+        public string Formula { get; set; }
     }
 
     /// <summary>
@@ -786,7 +888,7 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
+        public string EmployeeName { get; set; }
         public string EmployeeNumber { get; set; }
         public string DepartmentName { get; set; }
         public string LoanType { get; set; }
@@ -802,7 +904,7 @@ namespace HR.Models
         public decimal RemainingAmount { get; set; }
         public string Status { get; set; }
         public int? ApprovedBy { get; set; }
-        public string ApproverFullName { get; set; }
+        public string ApproverName { get; set; }
         public DateTime? ApprovalDate { get; set; }
         public string RejectionReason { get; set; }
         public string Notes { get; set; }
@@ -816,194 +918,184 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int LoanID { get; set; }
+        public int EmployeeID { get; set; }
+        public string EmployeeName { get; set; }
+        public string LoanType { get; set; }
         public int InstallmentNumber { get; set; }
         public DateTime DueDate { get; set; }
         public decimal Amount { get; set; }
         public decimal PaidAmount { get; set; }
         public DateTime? PaymentDate { get; set; }
         public string Status { get; set; }
-        public int? PayrollRecordID { get; set; }
-        public string PayrollPeriodName { get; set; }
+        public int? PayrollDetailID { get; set; }
+        public string PayrollPeriod { get; set; }
         public string Notes { get; set; }
     }
 
     #endregion
 
-    #region System Settings
+    #region System
 
     /// <summary>
     /// System setting DTO
     /// </summary>
     public class SystemSettingDTO
     {
+        public int ID { get; set; }
         public string SettingKey { get; set; }
         public string SettingValue { get; set; }
         public string SettingGroup { get; set; }
         public string Description { get; set; }
-        public bool IsSecure { get; set; }
+        public string DataType { get; set; }
+        public bool IsVisible { get; set; }
+        public bool IsEditable { get; set; }
     }
 
-    #endregion
-
-    #region Dashboard
+    /// <summary>
+    /// Notification DTO
+    /// </summary>
+    public class NotificationDTO
+    {
+        public int ID { get; set; }
+        public string Type { get; set; }
+        public string Title { get; set; }
+        public string Message { get; set; }
+        public int? EmployeeID { get; set; }
+        public string EmployeeName { get; set; }
+        public bool IsRead { get; set; }
+        public DateTime? ReadAt { get; set; }
+        public bool IsSystemNotification { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+    }
 
     /// <summary>
-    /// Dashboard statistics DTO
+    /// Dashboard summary DTO
     /// </summary>
-    public class DashboardStatisticsDTO
+    public class DashboardSummaryDTO
     {
         public int TotalEmployees { get; set; }
         public int ActiveEmployees { get; set; }
         public int OnLeaveEmployees { get; set; }
-        public int NewEmployees { get; set; }
-        public int ProbationEmployees { get; set; }
-        public int ExpiringContractsCount { get; set; }
-        public int ExpiringDocumentsCount { get; set; }
-        public int BirthdaysThisMonth { get; set; }
-        public decimal TotalPayroll { get; set; }
-        public int AbsentToday { get; set; }
-        public int LateToday { get; set; }
-        public int PresentToday { get; set; }
-        public int PendingLeaveRequests { get; set; }
-        public int ApprovedLeaveRequests { get; set; }
+        public int NewEmployeesThisMonth { get; set; }
         public int TotalDepartments { get; set; }
         public int TotalPositions { get; set; }
+        public int PresentToday { get; set; }
+        public int AbsentToday { get; set; }
+        public int LateToday { get; set; }
+        public int OnLeaveToday { get; set; }
+        public int PendingLeaveRequests { get; set; }
+        public List<UpcomingEventDTO> UpcomingEvents { get; set; }
+        public List<BirthdayDTO> UpcomingBirthdays { get; set; }
+        public List<ProbationEndDTO> UpcomingProbationEnds { get; set; }
+        public List<ContractEndDTO> UpcomingContractEnds { get; set; }
+        public List<DocumentExpiryDTO> UpcomingDocumentExpiries { get; set; }
     }
 
     /// <summary>
-    /// Department statistics DTO
-    /// </summary>
-    public class DepartmentStatisticsDTO
-    {
-        public int DepartmentID { get; set; }
-        public string DepartmentName { get; set; }
-        public int EmployeeCount { get; set; }
-        public decimal TotalSalary { get; set; }
-        public decimal AverageSalary { get; set; }
-        public double AverageTenure { get; set; } // In years
-        public double AverageAge { get; set; }
-        public int MaleCount { get; set; }
-        public int FemaleCount { get; set; }
-    }
-
-    /// <summary>
-    /// Attendance statistics DTO
-    /// </summary>
-    public class AttendanceStatisticsDTO
-    {
-        public string Date { get; set; } // For grouping by day, month, or year
-        public int TotalEmployees { get; set; }
-        public int PresentCount { get; set; }
-        public int AbsentCount { get; set; }
-        public int LateCount { get; set; }
-        public int EarlyDepartureCount { get; set; }
-        public int LeaveCount { get; set; }
-        public double PresentPercentage { get; set; }
-        public double AbsentPercentage { get; set; }
-        public double LatePercentage { get; set; }
-    }
-
-    /// <summary>
-    /// Upcoming event DTO (birthdays, contract expirations, etc.)
+    /// Upcoming event DTO
     /// </summary>
     public class UpcomingEventDTO
     {
-        public int EmployeeID { get; set; }
-        public string EmployeeFullName { get; set; }
-        public string EmployeeNumber { get; set; }
-        public string DepartmentName { get; set; }
-        public string EventType { get; set; } // Birthday, contract expiry, document expiry, etc.
-        public DateTime EventDate { get; set; }
+        public int ID { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public DateTime Date { get; set; }
+        public string Type { get; set; }
         public int DaysRemaining { get; set; }
-        public string Notes { get; set; }
     }
 
-    #endregion
-
-    #region Reports
-
     /// <summary>
-    /// Report parameter DTO
+    /// Employee birthday DTO
     /// </summary>
-    public class ReportParameterDTO
+    public class BirthdayDTO
     {
-        public string Name { get; set; }
-        public string Label { get; set; }
-        public string Type { get; set; } // Text, Date, Number, Boolean, List, etc.
-        public string Value { get; set; }
-        public List<KeyValuePair<string, string>> Options { get; set; } // For dropdown lists
-        public bool IsRequired { get; set; }
+        public int EmployeeID { get; set; }
+        public string EmployeeName { get; set; }
+        public string DepartmentName { get; set; }
+        public DateTime BirthDate { get; set; }
+        public int Age { get; set; }
+        public DateTime UpcomingBirthday { get; set; }
+        public int DaysRemaining { get; set; }
     }
 
     /// <summary>
-    /// Report DTO
+    /// Probation end DTO
     /// </summary>
-    public class ReportDTO
+    public class ProbationEndDTO
+    {
+        public int EmployeeID { get; set; }
+        public string EmployeeName { get; set; }
+        public string DepartmentName { get; set; }
+        public string PositionTitle { get; set; }
+        public DateTime HireDate { get; set; }
+        public DateTime ProbationEndDate { get; set; }
+        public int DaysRemaining { get; set; }
+    }
+
+    /// <summary>
+    /// Contract end DTO
+    /// </summary>
+    public class ContractEndDTO
+    {
+        public int EmployeeID { get; set; }
+        public string EmployeeName { get; set; }
+        public string DepartmentName { get; set; }
+        public string PositionTitle { get; set; }
+        public string EmploymentType { get; set; }
+        public DateTime ContractStartDate { get; set; }
+        public DateTime ContractEndDate { get; set; }
+        public int DaysRemaining { get; set; }
+    }
+
+    /// <summary>
+    /// Document expiry DTO
+    /// </summary>
+    public class DocumentExpiryDTO
+    {
+        public int EmployeeID { get; set; }
+        public string EmployeeName { get; set; }
+        public int DocumentID { get; set; }
+        public string DocumentType { get; set; }
+        public string DocumentTitle { get; set; }
+        public DateTime IssueDate { get; set; }
+        public DateTime ExpiryDate { get; set; }
+        public int DaysRemaining { get; set; }
+    }
+
+    /// <summary>
+    /// Activity log DTO
+    /// </summary>
+    public class ActivityLogDTO
     {
         public int ID { get; set; }
-        public string Name { get; set; }
-        public string DisplayName { get; set; }
+        public int? UserID { get; set; }
+        public string UserName { get; set; }
+        public DateTime ActivityDate { get; set; }
+        public string ActivityType { get; set; }
+        public string ModuleName { get; set; }
         public string Description { get; set; }
-        public string Category { get; set; }
-        public string FileName { get; set; }
-        public bool IsActive { get; set; }
-        public List<ReportParameterDTO> Parameters { get; set; }
-    }
-
-    #endregion
-
-    #region ZKTeco Integration
-
-    /// <summary>
-    /// ZKTeco user DTO
-    /// </summary>
-    public class ZKUserDTO
-    {
-        public int UserID { get; set; }
-        public string Name { get; set; }
-        public string Password { get; set; }
-        public int Privilege { get; set; }
-        public bool Enabled { get; set; }
-        public string CardNo { get; set; }
+        public string IPAddress { get; set; }
+        public int? RecordID { get; set; }
+        public string OldValues { get; set; }
+        public string NewValues { get; set; }
     }
 
     /// <summary>
-    /// ZKTeco template (fingerprint) DTO
+    /// Login history DTO
     /// </summary>
-    public class ZKTemplateDTO
+    public class LoginHistoryDTO
     {
-        public int UserID { get; set; }
-        public int FingerIndex { get; set; }
-        public int Flag { get; set; }
-        public string Template { get; set; }
-        public int Size { get; set; }
-    }
-
-    /// <summary>
-    /// ZKTeco attendance log DTO
-    /// </summary>
-    public class ZKAttendanceDTO
-    {
-        public int UserID { get; set; }
-        public DateTime LogTime { get; set; }
-        public int VerifyMode { get; set; }
-        public int InOutMode { get; set; }
-        public int WorkCode { get; set; }
-    }
-
-    /// <summary>
-    /// ZKTeco device status DTO
-    /// </summary>
-    public class ZKDeviceStatusDTO
-    {
-        public bool IsConnected { get; set; }
-        public string SerialNumber { get; set; }
-        public string DeviceModel { get; set; }
-        public string Firmware { get; set; }
-        public int UserCount { get; set; }
-        public int TemplateCount { get; set; }
-        public int AttendanceCount { get; set; }
-        public DateTime DeviceTime { get; set; }
+        public int ID { get; set; }
+        public int? UserID { get; set; }
+        public string UserName { get; set; }
+        public DateTime LoginTime { get; set; }
+        public DateTime? LogoutTime { get; set; }
+        public string IPAddress { get; set; }
+        public string MachineName { get; set; }
+        public string LoginStatus { get; set; }
+        public string UserAgent { get; set; }
+        public TimeSpan? SessionDuration { get; set; }
     }
 
     #endregion
@@ -1011,50 +1103,26 @@ namespace HR.Models
     #region Common
 
     /// <summary>
-    /// Key value pair DTO
+    /// Generic API response DTO
     /// </summary>
-    public class KeyValueDTO
-    {
-        public string Key { get; set; }
-        public string Value { get; set; }
-    }
-
-    /// <summary>
-    /// Tree node DTO (for tree views)
-    /// </summary>
-    public class TreeNodeDTO
-    {
-        public string ID { get; set; }
-        public string ParentID { get; set; }
-        public string Text { get; set; }
-        public bool HasChildren { get; set; }
-        public bool IsExpanded { get; set; }
-        public bool IsSelected { get; set; }
-        public string IconCls { get; set; }
-        public List<TreeNodeDTO> Children { get; set; }
-    }
-
-    /// <summary>
-    /// Result DTO (for returning operation results)
-    /// </summary>
-    public class ResultDTO
+    public class ApiResponseDTO<T>
     {
         public bool Success { get; set; }
         public string Message { get; set; }
-        public object Data { get; set; }
+        public T Data { get; set; }
+        public Dictionary<string, string[]> Errors { get; set; }
     }
 
     /// <summary>
-    /// Pagination DTO
+    /// Dropdown item DTO
     /// </summary>
-    public class PaginationDTO
+    public class DropdownItemDTO
     {
-        public int Page { get; set; }
-        public int PageSize { get; set; }
-        public int TotalCount { get; set; }
-        public int TotalPages { get; set; }
-        public bool HasPrevious { get; set; }
-        public bool HasNext { get; set; }
+        public int Value { get; set; }
+        public string Text { get; set; }
+        public string Group { get; set; }
+        public bool IsDisabled { get; set; }
+        public string AdditionalData { get; set; }
     }
 
     /// <summary>
@@ -1062,8 +1130,48 @@ namespace HR.Models
     /// </summary>
     public class PagedResultDTO<T>
     {
+        public int TotalCount { get; set; }
+        public int PageSize { get; set; }
+        public int CurrentPage { get; set; }
+        public int TotalPages { get; set; }
         public List<T> Items { get; set; }
-        public PaginationDTO Pagination { get; set; }
+        public bool HasPreviousPage { get; set; }
+        public bool HasNextPage { get; set; }
+    }
+
+    /// <summary>
+    /// Chart data DTO
+    /// </summary>
+    public class ChartDataDTO
+    {
+        public string Title { get; set; }
+        public string SubTitle { get; set; }
+        public List<string> Labels { get; set; }
+        public List<ChartSeriesDTO> Series { get; set; }
+    }
+
+    /// <summary>
+    /// Chart series DTO
+    /// </summary>
+    public class ChartSeriesDTO
+    {
+        public string Name { get; set; }
+        public string Color { get; set; }
+        public List<decimal> Data { get; set; }
+    }
+
+    /// <summary>
+    /// File upload result DTO
+    /// </summary>
+    public class FileUploadResultDTO
+    {
+        public bool Success { get; set; }
+        public string Message { get; set; }
+        public string FileName { get; set; }
+        public string FilePath { get; set; }
+        public long FileSize { get; set; }
+        public string ContentType { get; set; }
+        public byte[] FileBytes { get; set; }
     }
 
     #endregion

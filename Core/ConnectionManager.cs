@@ -1,57 +1,55 @@
 using System;
 using System.Data;
 using System.Data.SqlClient;
-using System.Configuration;
 using System.IO;
+using System.Configuration;
 
 namespace HR.Core
 {
     /// <summary>
-    /// Manages database connections
+    /// مدير الاتصال بقاعدة البيانات
     /// </summary>
-    public static class ConnectionManager
+    public class ConnectionManager
     {
         private static string _connectionString;
-        private static bool _isInitialized;
+        private static bool _isInitialized = false;
 
         /// <summary>
-        /// Initializes the connection manager
+        /// تهيئة مدير الاتصال
         /// </summary>
-        /// <returns>True if the initialization was successful</returns>
+        /// <returns>نجاح التهيئة</returns>
         public static bool Initialize()
         {
             try
             {
-                // Get connection string from configuration
                 _connectionString = ConfigurationManager.ConnectionStrings["HRSystemConnection"].ConnectionString;
-
-                // Test connection
+                
+                // التحقق من صحة الاتصال
                 using (SqlConnection connection = new SqlConnection(_connectionString))
                 {
                     connection.Open();
-                    LogManager.LogInfo("Database connection initialized successfully");
+                    _isInitialized = true;
+                    LogManager.LogInfo("تم الاتصال بقاعدة البيانات بنجاح");
+                    return true;
                 }
-
-                _isInitialized = true;
-                return true;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, "Failed to initialize database connection");
+                LogManager.LogException(ex, "فشل الاتصال بقاعدة البيانات");
                 _isInitialized = false;
                 return false;
             }
         }
 
         /// <summary>
-        /// Creates a new database connection
+        /// إنشاء اتصال جديد بقاعدة البيانات
         /// </summary>
-        /// <returns>SQL connection object</returns>
+        /// <returns>اتصال قاعدة البيانات</returns>
         public static SqlConnection CreateConnection()
         {
             if (!_isInitialized)
             {
-                throw new InvalidOperationException("Connection manager is not initialized");
+                Initialize();
             }
 
             SqlConnection connection = new SqlConnection(_connectionString);
@@ -59,24 +57,96 @@ namespace HR.Core
         }
 
         /// <summary>
-        /// Executes a non-query SQL command
+        /// التحقق من تكوين النظام (وجود بيانات الشركة)
         /// </summary>
-        /// <param name="commandText">SQL command text</param>
-        /// <param name="parameters">SQL parameters</param>
-        /// <returns>Number of rows affected</returns>
+        /// <returns>هل تم تكوين النظام؟</returns>
+        public static bool IsSystemConfigured()
+        {
+            try
+            {
+                using (SqlConnection connection = CreateConnection())
+                {
+                    connection.Open();
+                    using (SqlCommand command = new SqlCommand("SELECT COUNT(*) FROM Company", connection))
+                    {
+                        int count = Convert.ToInt32(command.ExecuteScalar());
+                        return count > 0;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل التحقق من تكوين النظام");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// تهيئة قاعدة البيانات
+        /// </summary>
+        /// <returns>نجاح التهيئة</returns>
+        public static bool InitializeDatabase()
+        {
+            try
+            {
+                // قراءة ملف السكريبت
+                string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "HRSystem_SQLServer.sql");
+                string script = File.ReadAllText(scriptPath);
+
+                // فصل السكريبت إلى جمل SQL منفصلة
+                string[] commandTexts = script.Split(new[] { "GO", "go" }, StringSplitOptions.RemoveEmptyEntries);
+
+                using (SqlConnection connection = CreateConnection())
+                {
+                    connection.Open();
+                    using (SqlTransaction transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            foreach (string commandText in commandTexts)
+                            {
+                                if (!string.IsNullOrWhiteSpace(commandText))
+                                {
+                                    using (SqlCommand command = new SqlCommand(commandText, connection, transaction))
+                                    {
+                                        command.ExecuteNonQuery();
+                                    }
+                                }
+                            }
+
+                            transaction.Commit();
+                            LogManager.LogInfo("تم تهيئة قاعدة البيانات بنجاح");
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            transaction.Rollback();
+                            LogManager.LogException(ex, "فشل تهيئة قاعدة البيانات");
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل تهيئة قاعدة البيانات");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// تنفيذ استعلام على قاعدة البيانات
+        /// </summary>
+        /// <param name="commandText">نص الاستعلام</param>
+        /// <param name="parameters">المعاملات</param>
+        /// <returns>عدد الصفوف المتأثرة</returns>
         public static int ExecuteNonQuery(string commandText, params SqlParameter[] parameters)
         {
-            if (!_isInitialized)
-            {
-                throw new InvalidOperationException("Connection manager is not initialized");
-            }
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            using (SqlConnection connection = CreateConnection())
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand(commandText, connection))
                 {
-                    command.CommandType = CommandType.Text;
                     if (parameters != null)
                     {
                         command.Parameters.AddRange(parameters);
@@ -87,48 +157,18 @@ namespace HR.Core
         }
 
         /// <summary>
-        /// Executes a SQL query and returns a data reader
+        /// تنفيذ استعلام يرجع قيمة واحدة
         /// </summary>
-        /// <param name="commandText">SQL command text</param>
-        /// <param name="parameters">SQL parameters</param>
-        /// <returns>SQL data reader</returns>
-        public static SqlDataReader ExecuteReader(string commandText, params SqlParameter[] parameters)
-        {
-            if (!_isInitialized)
-            {
-                throw new InvalidOperationException("Connection manager is not initialized");
-            }
-
-            SqlConnection connection = new SqlConnection(_connectionString);
-            connection.Open();
-            SqlCommand command = new SqlCommand(commandText, connection);
-            command.CommandType = CommandType.Text;
-            if (parameters != null)
-            {
-                command.Parameters.AddRange(parameters);
-            }
-            return command.ExecuteReader(CommandBehavior.CloseConnection);
-        }
-
-        /// <summary>
-        /// Executes a SQL query and returns a scalar value
-        /// </summary>
-        /// <param name="commandText">SQL command text</param>
-        /// <param name="parameters">SQL parameters</param>
-        /// <returns>Scalar value</returns>
+        /// <param name="commandText">نص الاستعلام</param>
+        /// <param name="parameters">المعاملات</param>
+        /// <returns>القيمة المرجعة</returns>
         public static object ExecuteScalar(string commandText, params SqlParameter[] parameters)
         {
-            if (!_isInitialized)
-            {
-                throw new InvalidOperationException("Connection manager is not initialized");
-            }
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            using (SqlConnection connection = CreateConnection())
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand(commandText, connection))
                 {
-                    command.CommandType = CommandType.Text;
                     if (parameters != null)
                     {
                         command.Parameters.AddRange(parameters);
@@ -139,168 +179,49 @@ namespace HR.Core
         }
 
         /// <summary>
-        /// Executes a SQL query and returns a DataTable
+        /// تنفيذ استعلام وملء الجدول بالبيانات المرجعة
         /// </summary>
-        /// <param name="commandText">SQL command text</param>
-        /// <param name="parameters">SQL parameters</param>
-        /// <returns>DataTable with query results</returns>
-        public static DataTable ExecuteDataTable(string commandText, params SqlParameter[] parameters)
+        /// <param name="commandText">نص الاستعلام</param>
+        /// <param name="parameters">المعاملات</param>
+        /// <returns>جدول البيانات</returns>
+        public static DataTable ExecuteQuery(string commandText, params SqlParameter[] parameters)
         {
-            if (!_isInitialized)
-            {
-                throw new InvalidOperationException("Connection manager is not initialized");
-            }
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
+            DataTable table = new DataTable();
+            using (SqlConnection connection = CreateConnection())
             {
                 connection.Open();
                 using (SqlCommand command = new SqlCommand(commandText, connection))
                 {
-                    command.CommandType = CommandType.Text;
                     if (parameters != null)
                     {
                         command.Parameters.AddRange(parameters);
                     }
                     using (SqlDataAdapter adapter = new SqlDataAdapter(command))
                     {
-                        DataTable dataTable = new DataTable();
-                        adapter.Fill(dataTable);
-                        return dataTable;
+                        adapter.Fill(table);
                     }
                 }
             }
+            return table;
         }
 
         /// <summary>
-        /// Executes a stored procedure and returns a DataTable
+        /// تنفيذ استعلام وإرجاع قارئ البيانات
         /// </summary>
-        /// <param name="procedureName">Stored procedure name</param>
-        /// <param name="parameters">SQL parameters</param>
-        /// <returns>DataTable with query results</returns>
-        public static DataTable ExecuteStoredProcedure(string procedureName, params SqlParameter[] parameters)
+        /// <param name="commandText">نص الاستعلام</param>
+        /// <param name="parameters">المعاملات</param>
+        /// <returns>قارئ البيانات</returns>
+        public static SqlDataReader ExecuteReader(string commandText, params SqlParameter[] parameters)
         {
-            if (!_isInitialized)
-            {
-                throw new InvalidOperationException("Connection manager is not initialized");
-            }
-
-            using (SqlConnection connection = new SqlConnection(_connectionString))
-            {
-                connection.Open();
-                using (SqlCommand command = new SqlCommand(procedureName, connection))
-                {
-                    command.CommandType = CommandType.StoredProcedure;
-                    if (parameters != null)
-                    {
-                        command.Parameters.AddRange(parameters);
-                    }
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
-                    {
-                        DataTable dataTable = new DataTable();
-                        adapter.Fill(dataTable);
-                        return dataTable;
-                    }
-                }
-            }
-        }
-
-        /// <summary>
-        /// Begins a new transaction
-        /// </summary>
-        /// <returns>SQL transaction object</returns>
-        public static SqlTransaction BeginTransaction()
-        {
-            if (!_isInitialized)
-            {
-                throw new InvalidOperationException("Connection manager is not initialized");
-            }
-
-            SqlConnection connection = new SqlConnection(_connectionString);
+            SqlConnection connection = CreateConnection();
             connection.Open();
-            return connection.BeginTransaction();
-        }
-
-        /// <summary>
-        /// Checks if the system is configured (has company information)
-        /// </summary>
-        /// <returns>True if the system is configured</returns>
-        public static bool IsSystemConfigured()
-        {
-            if (!_isInitialized)
+            SqlCommand command = new SqlCommand(commandText, connection);
+            if (parameters != null)
             {
-                throw new InvalidOperationException("Connection manager is not initialized");
+                command.Parameters.AddRange(parameters);
             }
-
-            try
-            {
-                object result = ExecuteScalar("SELECT COUNT(*) FROM Company");
-                return Convert.ToInt32(result) > 0;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "Failed to check if system is configured");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Initializes the database (creates tables and initial data)
-        /// </summary>
-        /// <returns>True if the initialization was successful</returns>
-        public static bool InitializeDatabase()
-        {
-            if (!_isInitialized)
-            {
-                throw new InvalidOperationException("Connection manager is not initialized");
-            }
-
-            try
-            {
-                // Check if database already has tables
-                object result = ExecuteScalar("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'");
-                if (Convert.ToInt32(result) > 0)
-                {
-                    // Database already has tables
-                    LogManager.LogInfo("Database already initialized");
-                    return true;
-                }
-
-                // Read SQL script from file
-                string sqlScript = File.ReadAllText("HRSystem_SQLServer.sql");
-                
-                // Execute SQL script
-                string[] commandTexts = sqlScript.Split(new[] { "GO" }, StringSplitOptions.RemoveEmptyEntries);
-                foreach (string commandText in commandTexts)
-                {
-                    if (!string.IsNullOrWhiteSpace(commandText))
-                    {
-                        ExecuteNonQuery(commandText);
-                    }
-                }
-
-                LogManager.LogInfo("Database initialized successfully");
-                return true;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "Failed to initialize database");
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Gets the connection string
-        /// </summary>
-        public static string ConnectionString
-        {
-            get
-            {
-                if (!_isInitialized)
-                {
-                    throw new InvalidOperationException("Connection manager is not initialized");
-                }
-                return _connectionString;
-            }
+            // CommandBehavior.CloseConnection يضمن إغلاق الاتصال عند إغلاق القارئ
+            return command.ExecuteReader(CommandBehavior.CloseConnection);
         }
     }
 }

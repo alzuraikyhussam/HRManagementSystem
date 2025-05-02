@@ -710,8 +710,11 @@ namespace HR.Models
     {
         public int ID { get; set; }
         public int EmployeeID { get; set; }
+        public int ComponentID { get; set; }
         public DateTime EffectiveDate { get; set; }
         public DateTime? EndDate { get; set; }
+        public decimal? Amount { get; set; }
+        public decimal? Percentage { get; set; }
         public bool IsActive { get; set; }
         public string Notes { get; set; }
         public DateTime CreatedAt { get; set; }
@@ -721,101 +724,80 @@ namespace HR.Models
 
         // Navigation properties
         public Employee Employee { get; set; }
-        public User Creator { get; set; }
-        public User Updater { get; set; }
-        public List<EmployeeSalaryComponent> SalaryComponents { get; set; }
-    }
-
-    /// <summary>
-    /// Employee salary component model
-    /// </summary>
-    public class EmployeeSalaryComponent
-    {
-        public int ID { get; set; }
-        public int EmployeeSalaryID { get; set; }
-        public int SalaryComponentID { get; set; }
-        public decimal? Amount { get; set; }
-        public decimal? Percentage { get; set; }
-        public string Formula { get; set; }
-        public string Notes { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public int? CreatedBy { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-        public int? UpdatedBy { get; set; }
-
-        // Navigation properties
-        public EmployeeSalary EmployeeSalary { get; set; }
-        public SalaryComponent SalaryComponent { get; set; }
+        public SalaryComponent Component { get; set; }
         public User Creator { get; set; }
         public User Updater { get; set; }
     }
 
     /// <summary>
-    /// Payroll period model
+    /// Payroll model
     /// </summary>
-    public class PayrollPeriod
+    public class Payroll
     {
         public int ID { get; set; }
-        public string PeriodName { get; set; }
+        public string PayrollName { get; set; }
+        public string PayrollPeriod { get; set; } // MM/YYYY
+        public string PayrollType { get; set; } // Monthly, semi-monthly, weekly
+        public int PayrollMonth { get; set; }
+        public int PayrollYear { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public DateTime? PaymentDate { get; set; }
-        public string Status { get; set; } // Open, closed, paid, etc.
-        public string Notes { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public int? CreatedBy { get; set; }
-        public DateTime? UpdatedAt { get; set; }
-        public int? UpdatedBy { get; set; }
-
-        // Navigation properties
-        public User Creator { get; set; }
-        public User Updater { get; set; }
-        public List<PayrollRecord> PayrollRecords { get; set; }
-    }
-
-    /// <summary>
-    /// Payroll record model
-    /// </summary>
-    public class PayrollRecord
-    {
-        public int ID { get; set; }
-        public int EmployeeID { get; set; }
-        public int PayrollPeriodID { get; set; }
-        public decimal BasicSalary { get; set; }
+        public int TotalEmployees { get; set; }
+        public decimal TotalBasicSalary { get; set; }
         public decimal TotalAllowances { get; set; }
         public decimal TotalDeductions { get; set; }
-        public decimal GrossSalary { get; set; }
-        public decimal NetSalary { get; set; }
-        public int? WorkDays { get; set; }
-        public int AbsentDays { get; set; }
-        public int LeaveDays { get; set; }
-        public decimal OvertimeHours { get; set; }
-        public decimal OvertimeAmount { get; set; }
-        public decimal LoanDeductions { get; set; }
-        public decimal TaxAmount { get; set; }
-        public decimal SocialInsuranceAmount { get; set; }
-        public decimal OtherDeductions { get; set; }
-        public string Notes { get; set; }
-        public string Status { get; set; } // Draft, approved, paid, etc.
+        public decimal TotalOvertimeAmount { get; set; }
+        public decimal TotalPayrollAmount { get; set; }
+        public string Status { get; set; } // Draft, under review, approved, paid, canceled
+        public int? ProcessedBy { get; set; }
+        public DateTime? ProcessedAt { get; set; }
         public int? ApprovedBy { get; set; }
         public DateTime? ApprovalDate { get; set; }
-        public string PaymentMethod { get; set; }
-        public string PaymentReference { get; set; }
-        public DateTime? PaymentDate { get; set; }
+        public string Notes { get; set; }
         public DateTime CreatedAt { get; set; }
         public int? CreatedBy { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public int? UpdatedBy { get; set; }
 
         // Navigation properties
-        public Employee Employee { get; set; }
-        public PayrollPeriod PayrollPeriod { get; set; }
+        public User Processor { get; set; }
         public User Approver { get; set; }
         public User Creator { get; set; }
         public User Updater { get; set; }
+        public List<PayrollDetail> PayrollDetails { get; set; }
+    }
+
+    /// <summary>
+    /// Payroll detail model
+    /// </summary>
+    public class PayrollDetail
+    {
+        public int ID { get; set; }
+        public int PayrollID { get; set; }
+        public int EmployeeID { get; set; }
+        public int WorkingDays { get; set; }
+        public int PresentDays { get; set; }
+        public int AbsentDays { get; set; }
+        public int LeaveDays { get; set; }
+        public int LateMinutes { get; set; }
+        public decimal OvertimeHours { get; set; }
+        public decimal BaseSalary { get; set; }
+        public decimal TotalAllowances { get; set; }
+        public decimal TotalDeductions { get; set; }
+        public decimal OvertimeAmount { get; set; }
+        public decimal NetSalary { get; set; }
+        public string Status { get; set; } // Calculated, paid, canceled
+        public string PaymentMethod { get; set; }
+        public string PaymentReference { get; set; }
+        public string Notes { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+
+        // Navigation properties
+        public Payroll Payroll { get; set; }
+        public Employee Employee { get; set; }
         public List<PayrollComponentDetail> ComponentDetails { get; set; }
-        public List<Deduction> Deductions { get; set; }
-        public List<LoanInstallment> LoanInstallments { get; set; }
     }
 
     /// <summary>
@@ -824,17 +806,54 @@ namespace HR.Models
     public class PayrollComponentDetail
     {
         public int ID { get; set; }
-        public int PayrollRecordID { get; set; }
-        public int SalaryComponentID { get; set; }
+        public int PayrollDetailID { get; set; }
+        public int ComponentID { get; set; }
         public string ComponentName { get; set; }
+        public string ComponentType { get; set; } // Basic, allowance, deduction, bonus, etc.
         public decimal Amount { get; set; }
-        public string Type { get; set; } // Basic, allowance, deduction, bonus, etc.
-        public string Notes { get; set; }
+        public string Formula { get; set; }
         public DateTime CreatedAt { get; set; }
 
         // Navigation properties
-        public PayrollRecord PayrollRecord { get; set; }
-        public SalaryComponent SalaryComponent { get; set; }
+        public PayrollDetail PayrollDetail { get; set; }
+        public SalaryComponent Component { get; set; }
+    }
+
+    /// <summary>
+    /// Notification model
+    /// </summary>
+    public class Notification
+    {
+        public int ID { get; set; }
+        public string Type { get; set; }
+        public string Title { get; set; }
+        public string Message { get; set; }
+        public int? EmployeeID { get; set; }
+        public bool IsRead { get; set; }
+        public DateTime? ReadAt { get; set; }
+        public bool IsSystemNotification { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? ExpiryDate { get; set; }
+
+        // Navigation properties
+        public Employee Employee { get; set; }
+    }
+
+    /// <summary>
+    /// System setting model
+    /// </summary>
+    public class SystemSetting
+    {
+        public int ID { get; set; }
+        public string SettingKey { get; set; }
+        public string SettingValue { get; set; }
+        public string SettingGroup { get; set; }
+        public string Description { get; set; }
+        public string DataType { get; set; }
+        public bool IsVisible { get; set; }
+        public bool IsEditable { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 
     /// <summary>
@@ -886,14 +905,14 @@ namespace HR.Models
         public decimal PaidAmount { get; set; }
         public DateTime? PaymentDate { get; set; }
         public string Status { get; set; } // Pending, paid, overdue, etc.
-        public int? PayrollRecordID { get; set; }
+        public int? PayrollDetailID { get; set; }
         public string Notes { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 
         // Navigation properties
         public Loan Loan { get; set; }
-        public PayrollRecord PayrollRecord { get; set; }
+        public PayrollDetail PayrollDetail { get; set; }
     }
 
     #endregion
@@ -905,11 +924,14 @@ namespace HR.Models
     /// </summary>
     public class SystemSetting
     {
+        public int ID { get; set; }
         public string SettingKey { get; set; }
         public string SettingValue { get; set; }
         public string SettingGroup { get; set; }
         public string Description { get; set; }
-        public bool IsSecure { get; set; }
+        public string DataType { get; set; }
+        public bool IsVisible { get; set; }
+        public bool IsEditable { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
     }

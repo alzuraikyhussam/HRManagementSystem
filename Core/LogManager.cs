@@ -1,21 +1,18 @@
 using System;
-using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Text;
 using System.Threading;
 
 namespace HR.Core
 {
     /// <summary>
-    /// مدير سجلات النظام
+    /// مدير السجلات والتقارير
     /// </summary>
-    public static class LogManager
+    public class LogManager
     {
-        private static readonly object _lockObject = new object();
-        private static string _logFolderPath;
-        private static string _logFilePath;
-        private static readonly int _maxLogFileSizeBytes = 5 * 1024 * 1024; // 5 ميجابايت كحد أقصى
+        private static ReaderWriterLockSlim _readWriteLock = new ReaderWriterLockSlim();
+        private static string _logPath;
+        private static bool _isInitialized = false;
 
         /// <summary>
         /// تهيئة مدير السجلات
@@ -24,26 +21,25 @@ namespace HR.Core
         {
             try
             {
-                string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-                _logFolderPath = Path.Combine(appPath, "Logs");
+                string basePath = AppDomain.CurrentDomain.BaseDirectory;
+                string logDirectory = Path.Combine(basePath, "Logs");
                 
-                // إنشاء مجلد السجلات إذا لم يكن موجودًا
-                if (!Directory.Exists(_logFolderPath))
+                // إنشاء مجلد السجلات إذا لم يكن موجودا
+                if (!Directory.Exists(logDirectory))
                 {
-                    Directory.CreateDirectory(_logFolderPath);
+                    Directory.CreateDirectory(logDirectory);
                 }
-
-                // اسم ملف السجل بناءً على التاريخ
-                string logFileName = $"Log_{DateTime.Now:yyyy-MM-dd}.log";
-                _logFilePath = Path.Combine(_logFolderPath, logFileName);
-
-                // تسجيل بدء النظام
-                LogInfo("System initialized");
+                
+                // تحديد مسار ملف السجل
+                _logPath = Path.Combine(logDirectory, $"HRSystem_{DateTime.Now:yyyy-MM-dd}.log");
+                _isInitialized = true;
+                
+                LogInfo("تم تهيئة مدير السجلات بنجاح");
             }
             catch (Exception ex)
             {
-                // لا يمكن استخدام LogException هنا لتجنب التكرار
-                Debug.WriteLine($"Failed to initialize LogManager: {ex}");
+                Console.WriteLine($"فشل تهيئة مدير السجلات: {ex.Message}");
+                _isInitialized = false;
             }
         }
 
@@ -53,7 +49,7 @@ namespace HR.Core
         /// <param name="message">نص المعلومة</param>
         public static void LogInfo(string message)
         {
-            WriteToLog("INFO", message);
+            Log("INFO", message);
         }
 
         /// <summary>
@@ -62,7 +58,7 @@ namespace HR.Core
         /// <param name="message">نص التحذير</param>
         public static void LogWarning(string message)
         {
-            WriteToLog("WARNING", message);
+            Log("WARNING", message);
         }
 
         /// <summary>
@@ -71,141 +67,148 @@ namespace HR.Core
         /// <param name="message">نص الخطأ</param>
         public static void LogError(string message)
         {
-            WriteToLog("ERROR", message);
+            Log("ERROR", message);
         }
 
         /// <summary>
         /// تسجيل استثناء
         /// </summary>
-        /// <param name="ex">كائن الاستثناء</param>
-        /// <param name="context">سياق الاستثناء</param>
-        public static void LogException(Exception ex, string context = null)
+        /// <param name="ex">الاستثناء</param>
+        /// <param name="message">رسالة إضافية</param>
+        public static void LogException(Exception ex, string message = null)
         {
             StringBuilder sb = new StringBuilder();
-
-            if (!string.IsNullOrEmpty(context))
+            
+            if (!string.IsNullOrEmpty(message))
             {
-                sb.Append(context).Append(": ");
+                sb.AppendLine(message);
             }
-
-            sb.Append(ex.Message);
-
-            // تضمين تفاصيل الاستثناء
-            sb.AppendLine().Append("Exception Type: ").Append(ex.GetType().FullName);
-            sb.AppendLine().Append("Stack Trace: ").Append(ex.StackTrace);
-
-            // تضمين الاستثناءات الداخلية
-            Exception innerEx = ex.InnerException;
-            while (innerEx != null)
+            
+            sb.AppendLine($"استثناء: {ex.Message}");
+            sb.AppendLine($"المصدر: {ex.Source}");
+            sb.AppendLine($"تفاصيل: {ex.StackTrace}");
+            
+            if (ex.InnerException != null)
             {
-                sb.AppendLine().Append("Inner Exception: ").Append(innerEx.Message);
-                sb.AppendLine().Append("Inner Stack Trace: ").Append(innerEx.StackTrace);
-                innerEx = innerEx.InnerException;
+                sb.AppendLine($"استثناء داخلي: {ex.InnerException.Message}");
+                sb.AppendLine($"تفاصيل الاستثناء الداخلي: {ex.InnerException.StackTrace}");
             }
-
-            WriteToLog("EXCEPTION", sb.ToString());
+            
+            Log("EXCEPTION", sb.ToString());
         }
 
         /// <summary>
-        /// تسجيل أثر
+        /// تسجيل نشاط المستخدم
         /// </summary>
-        /// <param name="message">نص الأثر</param>
-        public static void LogTrace(string message)
+        /// <param name="userId">معرف المستخدم</param>
+        /// <param name="activity">النشاط</param>
+        /// <param name="details">تفاصيل إضافية</param>
+        public static void LogUserActivity(int userId, string activity, string details = null)
         {
-            WriteToLog("TRACE", message);
+            string message = $"المستخدم (ID: {userId}) - {activity}";
+            
+            if (!string.IsNullOrEmpty(details))
+            {
+                message += $" - {details}";
+            }
+            
+            Log("USER_ACTIVITY", message);
         }
 
         /// <summary>
-        /// كتابة السجل إلى الملف
+        /// تسجيل محاولة تسجيل دخول
+        /// </summary>
+        /// <param name="username">اسم المستخدم</param>
+        /// <param name="success">نجاح العملية</param>
+        /// <param name="ipAddress">عنوان IP</param>
+        public static void LogLogin(string username, bool success, string ipAddress)
+        {
+            string status = success ? "ناجح" : "فاشل";
+            string message = $"محاولة تسجيل دخول {status} - المستخدم: {username} - IP: {ipAddress}";
+            Log("LOGIN", message);
+        }
+
+        /// <summary>
+        /// كتابة السجل
         /// </summary>
         /// <param name="level">مستوى السجل</param>
         /// <param name="message">نص السجل</param>
-        private static void WriteToLog(string level, string message)
+        private static void Log(string level, string message)
         {
-            // التأكد من تهيئة مدير السجلات
-            if (string.IsNullOrEmpty(_logFilePath))
+            try
+            {
+                if (!_isInitialized)
+                {
+                    Initialize();
+                }
+
+                // تنسيق مدخل السجل
+                string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{level}] {message}";
+
+                // كتابة السجل بطريقة آمنة لتعدد المستخدمين
+                _readWriteLock.EnterWriteLock();
+                try
+                {
+                    using (StreamWriter writer = new StreamWriter(_logPath, true, Encoding.UTF8))
+                    {
+                        writer.WriteLine(logEntry);
+                    }
+                }
+                finally
+                {
+                    _readWriteLock.ExitWriteLock();
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"فشل في كتابة السجل: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// الحصول على سجلات اليوم
+        /// </summary>
+        /// <returns>نص السجلات</returns>
+        public static string GetTodaysLogs()
+        {
+            if (!_isInitialized)
             {
                 Initialize();
             }
 
+            if (!File.Exists(_logPath))
+            {
+                return "لا توجد سجلات لهذا اليوم.";
+            }
+
+            _readWriteLock.EnterReadLock();
             try
             {
-                lock (_lockObject)
-                {
-                    // التحقق من حجم ملف السجل
-                    CheckLogFileSize();
-
-                    // إنشاء سطر السجل
-                    string logLine = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{level}] [{Thread.CurrentThread.ManagedThreadId}] {message}{Environment.NewLine}";
-
-                    // كتابة السجل
-                    File.AppendAllText(_logFilePath, logLine);
-
-                    // كتابة السجل إلى وحدة التصحيح
-                    Debug.WriteLine(logLine);
-                }
+                return File.ReadAllText(_logPath, Encoding.UTF8);
             }
-            catch (Exception ex)
+            finally
             {
-                // تسجيل الخطأ إلى وحدة التصحيح
-                Debug.WriteLine($"Failed to write to log file: {ex.Message}");
+                _readWriteLock.ExitReadLock();
             }
         }
 
         /// <summary>
-        /// التحقق من حجم ملف السجل
+        /// الحصول على سجلات يوم معين
         /// </summary>
-        private static void CheckLogFileSize()
+        /// <param name="date">التاريخ</param>
+        /// <returns>نص السجلات</returns>
+        public static string GetLogsByDate(DateTime date)
         {
-            try
-            {
-                if (File.Exists(_logFilePath))
-                {
-                    FileInfo fileInfo = new FileInfo(_logFilePath);
-                    if (fileInfo.Length > _maxLogFileSizeBytes)
-                    {
-                        // إنشاء ملف سجل جديد بناءً على الوقت
-                        string newLogFileName = $"Log_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log";
-                        _logFilePath = Path.Combine(_logFolderPath, newLogFileName);
-                        LogInfo($"Log file size exceeded {_maxLogFileSizeBytes} bytes. Created new log file: {newLogFileName}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                // تسجيل الخطأ إلى وحدة التصحيح
-                Debug.WriteLine($"Failed to check log file size: {ex.Message}");
-            }
-        }
+            string logFile = Path.Combine(
+                Path.GetDirectoryName(_logPath), 
+                $"HRSystem_{date:yyyy-MM-dd}.log");
 
-        /// <summary>
-        /// تنظيف ملفات السجلات القديمة
-        /// </summary>
-        /// <param name="daysToKeep">عدد الأيام للاحتفاظ بملفات السجلات</param>
-        public static void CleanupOldLogs(int daysToKeep = 30)
-        {
-            try
+            if (!File.Exists(logFile))
             {
-                if (string.IsNullOrEmpty(_logFolderPath) || !Directory.Exists(_logFolderPath))
-                {
-                    return;
-                }
+                return $"لا توجد سجلات لتاريخ {date:yyyy-MM-dd}.";
+            }
 
-                DateTime cutoffDate = DateTime.Now.AddDays(-daysToKeep);
-                foreach (string logFile in Directory.GetFiles(_logFolderPath, "Log_*.log"))
-                {
-                    FileInfo fileInfo = new FileInfo(logFile);
-                    if (fileInfo.CreationTime < cutoffDate)
-                    {
-                        fileInfo.Delete();
-                        LogInfo($"Deleted old log file: {Path.GetFileName(logFile)}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogException(ex, "Failed to clean up old log files");
-            }
+            return File.ReadAllText(logFile, Encoding.UTF8);
         }
     }
 }
