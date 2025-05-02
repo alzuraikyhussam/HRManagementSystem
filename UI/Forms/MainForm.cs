@@ -2,31 +2,36 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using DevExpress.XtraBars;
-using DevExpress.XtraBars.Ribbon;
 using DevExpress.XtraBars.Navigation;
 using DevExpress.XtraEditors;
 using DevExpress.LookAndFeel;
+using DevExpress.Utils;
 using HR.Core;
 using HR.Models;
+using HR.Models.DTOs;
 using HR.UI.Forms.Company;
 using HR.UI.Forms.Employee;
 using HR.UI.Forms.Attendance;
 using HR.UI.Forms.Leave;
 using HR.UI.Forms.Payroll;
 using HR.UI.Forms.Settings;
+using HR.UI.Forms.Dashboard;
 
 namespace HR.UI.Forms
 {
     /// <summary>
     /// النموذج الرئيسي للتطبيق
     /// </summary>
-    public partial class MainForm : RibbonForm
+    public partial class MainForm : XtraForm
     {
         // الحالة الحالية للمستخدم
         private User _currentUser;
         
         // النافذة النشطة حاليا
         private XtraForm _activeForm;
+        
+        // مؤقت لتحديث الوقت والتاريخ
+        private Timer _dateTimeTimer;
 
         /// <summary>
         /// تهيئة النموذج الرئيسي
@@ -44,11 +49,14 @@ namespace HR.UI.Forms
             this.FormClosing += MainForm_FormClosing;
             
             // ضبط مكونات DevExpress
-            this.navigationPane.SelectedPageIndex = 0;
-            this.navigationPane.SelectedPageChanged += NavigationPane_SelectedPageChanged;
+            this.accordionControl.SelectedElement = accordionControlDashboard;
+            this.accordionControl.ElementClick += AccordionControl_ElementClick;
             
-            // بدء تشغيل المؤقتات
-            timerDateTime.Start();
+            // إنشاء مؤقت لتحديث الوقت والتاريخ
+            _dateTimeTimer = new Timer();
+            _dateTimeTimer.Interval = 1000;
+            _dateTimeTimer.Tick += DateTimeTimer_Tick;
+            _dateTimeTimer.Start();
             
             // تطبيق الصلاحيات
             _currentUser = SessionManager.GetCurrentUser();
@@ -91,6 +99,13 @@ namespace HR.UI.Forms
                     return;
                 }
                 
+                // إيقاف المؤقت
+                if (_dateTimeTimer != null)
+                {
+                    _dateTimeTimer.Stop();
+                    _dateTimeTimer.Dispose();
+                }
+                
                 // تسجيل الخروج
                 SessionManager.Logout();
                 
@@ -111,6 +126,15 @@ namespace HR.UI.Forms
                 if (company != null)
                 {
                     this.Text = $"{company.Name} - نظام إدارة الموارد البشرية";
+                    
+                    // تحديث الشعار إذا كان متوفراً
+                    if (company.Logo != null && company.Logo.Length > 0)
+                    {
+                        using (var ms = new System.IO.MemoryStream(company.Logo))
+                        {
+                            this.pictureEditLogo.Image = Image.FromStream(ms);
+                        }
+                    }
                 }
                 else
                 {
@@ -131,22 +155,25 @@ namespace HR.UI.Forms
         {
             if (_currentUser != null)
             {
-                barStaticItemUsername.Caption = $"المستخدم: {_currentUser.FullName}";
+                // عرض معلومات المستخدم في شريط العنوان
+                labelControlUserName.Text = $"مرحباً، {_currentUser.FullName}";
+                
+                // تحديث صورة المستخدم إذا كانت متوفرة
+                if (_currentUser.PhotoData != null && _currentUser.PhotoData.Length > 0)
+                {
+                    using (var ms = new System.IO.MemoryStream(_currentUser.PhotoData))
+                    {
+                        pictureEditUserImage.Image = Image.FromStream(ms);
+                    }
+                }
                 
                 // تحديث معلومات الموظف إذا كان مرتبطا بالمستخدم
-                if (_currentUser.EmployeeID.HasValue)
-                {
-                    barButtonItemUserProfile.Enabled = true;
-                }
-                else
-                {
-                    barButtonItemUserProfile.Enabled = false;
-                }
+                labelControlUserRole.Text = _currentUser.Role?.Name ?? "مستخدم";
             }
             else
             {
-                barStaticItemUsername.Caption = "المستخدم: غير معروف";
-                barButtonItemUserProfile.Enabled = false;
+                labelControlUserName.Text = "مرحباً، الزائر";
+                labelControlUserRole.Text = "زائر";
             }
         }
 
@@ -162,13 +189,15 @@ namespace HR.UI.Forms
                 
                 if (notificationCount > 0)
                 {
-                    barButtonItemNotifications.Caption = $"الإشعارات ({notificationCount})";
-                    barButtonItemNotifications.Hint = $"لديك {notificationCount} إشعار جديد";
+                    buttonNotifications.Text = $"الإشعارات ({notificationCount})";
+                    buttonNotifications.ToolTip = $"لديك {notificationCount} إشعار جديد";
+                    buttonNotifications.Appearance.ForeColor = Color.Red;
                 }
                 else
                 {
-                    barButtonItemNotifications.Caption = "الإشعارات";
-                    barButtonItemNotifications.Hint = "لا توجد إشعارات جديدة";
+                    buttonNotifications.Text = "الإشعارات";
+                    buttonNotifications.ToolTip = "لا توجد إشعارات جديدة";
+                    buttonNotifications.Appearance.ForeColor = Color.Black;
                 }
             }
             catch (Exception ex)
@@ -183,7 +212,24 @@ namespace HR.UI.Forms
         private int GetNotificationCount()
         {
             // في التطبيق الفعلي، يجب الحصول على العدد من قاعدة البيانات
-            return 0;
+            return 3; // قيمة تجريبية
+        }
+
+        /// <summary>
+        /// حدث تيك تحديث الوقت والتاريخ
+        /// </summary>
+        private void DateTimeTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                // تحديث الوقت والتاريخ
+                DateTime now = DateTime.Now;
+                labelControlDateTime.Text = $"{now:yyyy/MM/dd HH:mm:ss}";
+            }
+            catch
+            {
+                // تجاهل أي أخطاء في تحديث الوقت
+            }
         }
 
         /// <summary>
@@ -223,11 +269,16 @@ namespace HR.UI.Forms
                     return;
                 }
                 
-                // تطبيق الصلاحيات على وحدات التنقل
-                ApplyNavigationPermissions();
+                // لوحة التحكم متاحة للجميع
+                // accordionControlDashboard.Visible = true;
                 
-                // تطبيق الصلاحيات على الشريط
-                ApplyRibbonPermissions();
+                // التحقق من صلاحيات الوحدات الأخرى
+                accordionControlEmployees.Visible = SessionManager.HasPermission("Employees", "View");
+                accordionControlAttendance.Visible = SessionManager.HasPermission("Attendance", "View");
+                accordionControlLeaves.Visible = SessionManager.HasPermission("Leaves", "View");
+                accordionControlPayroll.Visible = SessionManager.HasPermission("Payroll", "View");
+                accordionControlReports.Visible = SessionManager.HasPermission("Reports", "View");
+                accordionControlSettings.Visible = SessionManager.HasPermission("Settings", "View");
             }
             catch (Exception ex)
             {
@@ -236,66 +287,56 @@ namespace HR.UI.Forms
         }
 
         /// <summary>
-        /// تطبيق الصلاحيات على وحدات التنقل
+        /// حدث النقر على عنصر في الأكورديون
         /// </summary>
-        private void ApplyNavigationPermissions()
+        private void AccordionControl_ElementClick(object sender, ElementClickEventArgs e)
         {
-            // لوحة التحكم متاحة للجميع
-            // navigationPaneDashboard.Visible = true;
-            
-            // التحقق من صلاحيات الوحدات الأخرى
-            navigationPaneEmployees.Visible = SessionManager.HasPermission("Employees", "View");
-            navigationPaneAttendance.Visible = SessionManager.HasPermission("Attendance", "View");
-            navigationPaneLeaves.Visible = SessionManager.HasPermission("Leaves", "View");
-            navigationPanePayroll.Visible = SessionManager.HasPermission("Payroll", "View");
-            navigationPaneReports.Visible = SessionManager.HasPermission("Reports", "View");
-            navigationPaneSettings.Visible = SessionManager.HasPermission("Settings", "View");
-        }
-
-        /// <summary>
-        /// تطبيق الصلاحيات على الشريط
-        /// </summary>
-        private void ApplyRibbonPermissions()
-        {
-            // تحديث صلاحيات أزرار الشريط
-            // ملاحظة: في التطبيق الفعلي، يجب التحقق من صلاحيات كل زر في الشريط
-        }
-
-        /// <summary>
-        /// حدث تغيير الصفحة النشطة في لوحة التنقل
-        /// </summary>
-        private void NavigationPane_SelectedPageChanged(object sender, NavigationPaneSelectedPageChangedEventArgs e)
-        {
-            // التحقق من الصفحة المحددة
-            NavigationPage selectedPage = e.Page;
-            
-            if (selectedPage == navigationPaneDashboard)
+            try
             {
-                ShowDashboard();
+                // التحقق من العنصر المحدد
+                AccordionControlElement element = e.Element;
+                
+                if (element == accordionControlDashboard)
+                {
+                    ShowDashboard();
+                }
+                else if (element == accordionControlEmployees)
+                {
+                    ShowEmployeeManagement();
+                }
+                else if (element == accordionControlAttendance)
+                {
+                    ShowAttendanceManagement();
+                }
+                else if (element == accordionControlLeaves)
+                {
+                    ShowLeaveManagement();
+                }
+                else if (element == accordionControlPayroll)
+                {
+                    ShowPayrollManagement();
+                }
+                else if (element == accordionControlReports)
+                {
+                    ShowReportsManagement();
+                }
+                else if (element == accordionControlSettings)
+                {
+                    ShowSettings();
+                }
+                else if (element == accordionControlLogout)
+                {
+                    LogoutUser();
+                }
             }
-            else if (selectedPage == navigationPaneEmployees)
+            catch (Exception ex)
             {
-                ShowEmployeeManagement();
-            }
-            else if (selectedPage == navigationPaneAttendance)
-            {
-                ShowAttendanceManagement();
-            }
-            else if (selectedPage == navigationPaneLeaves)
-            {
-                ShowLeaveManagement();
-            }
-            else if (selectedPage == navigationPanePayroll)
-            {
-                ShowPayrollManagement();
-            }
-            else if (selectedPage == navigationPaneReports)
-            {
-                ShowReportsManagement();
-            }
-            else if (selectedPage == navigationPaneSettings)
-            {
-                ShowSettings();
+                LogManager.LogException(ex, "فشل في معالجة حدث النقر على عنصر الأكورديون");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء تنفيذ العملية: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
 
@@ -304,7 +345,31 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowDashboard()
         {
-            OpenForm(null); // ملاحظة: يجب إنشاء نموذج لوحة التحكم لاحقا
+            try
+            {
+                accordionControl.SelectedElement = accordionControlDashboard;
+                
+                // إنشاء نموذج لوحة المعلومات
+                var dashboardForm = new Dashboard.DashboardForm();
+                
+                // فتح النموذج في منطقة العمل
+                OpenForm(dashboardForm);
+                
+                // تحديث العنوان
+                labelControlPageTitle.Text = "لوحة التحكم";
+                
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("dashboard");
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض لوحة التحكم");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض لوحة التحكم: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
@@ -312,7 +377,17 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowEmployeeManagement()
         {
-            OpenForm(null); // ملاحظة: يجب إنشاء نموذج إدارة الموظفين لاحقا
+            // تحديد العنصر المحدد في الأكورديون
+            accordionControl.SelectedElement = accordionControlEmployees;
+            
+            // تحديث العنوان
+            labelControlPageTitle.Text = "إدارة الموظفين";
+            
+            // تحديث الأيقونة
+            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("employees");
+            
+            // ملاحظة: يجب إنشاء نموذج إدارة الموظفين لاحقا
+            OpenForm(null);
         }
 
         /// <summary>
@@ -320,7 +395,17 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowAttendanceManagement()
         {
-            OpenForm(null); // ملاحظة: يجب إنشاء نموذج إدارة الحضور لاحقا
+            // تحديد العنصر المحدد في الأكورديون
+            accordionControl.SelectedElement = accordionControlAttendance;
+            
+            // تحديث العنوان
+            labelControlPageTitle.Text = "إدارة الحضور والانصراف";
+            
+            // تحديث الأيقونة
+            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("attendance");
+            
+            // ملاحظة: يجب إنشاء نموذج إدارة الحضور لاحقا
+            OpenForm(null);
         }
 
         /// <summary>
@@ -328,7 +413,17 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowLeaveManagement()
         {
-            OpenForm(null); // ملاحظة: يجب إنشاء نموذج إدارة الإجازات لاحقا
+            // تحديد العنصر المحدد في الأكورديون
+            accordionControl.SelectedElement = accordionControlLeaves;
+            
+            // تحديث العنوان
+            labelControlPageTitle.Text = "إدارة الإجازات";
+            
+            // تحديث الأيقونة
+            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("leaves");
+            
+            // ملاحظة: يجب إنشاء نموذج إدارة الإجازات لاحقا
+            OpenForm(null);
         }
 
         /// <summary>
@@ -336,7 +431,17 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowPayrollManagement()
         {
-            OpenForm(null); // ملاحظة: يجب إنشاء نموذج إدارة الرواتب لاحقا
+            // تحديد العنصر المحدد في الأكورديون
+            accordionControl.SelectedElement = accordionControlPayroll;
+            
+            // تحديث العنوان
+            labelControlPageTitle.Text = "إدارة الرواتب";
+            
+            // تحديث الأيقونة
+            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("payroll");
+            
+            // ملاحظة: يجب إنشاء نموذج إدارة الرواتب لاحقا
+            OpenForm(null);
         }
 
         /// <summary>
@@ -344,7 +449,17 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowReportsManagement()
         {
-            OpenForm(null); // ملاحظة: يجب إنشاء نموذج إدارة التقارير لاحقا
+            // تحديد العنصر المحدد في الأكورديون
+            accordionControl.SelectedElement = accordionControlReports;
+            
+            // تحديث العنوان
+            labelControlPageTitle.Text = "التقارير";
+            
+            // تحديث الأيقونة
+            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("reports");
+            
+            // ملاحظة: يجب إنشاء نموذج إدارة التقارير لاحقا
+            OpenForm(null);
         }
 
         /// <summary>
@@ -352,7 +467,69 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowSettings()
         {
-            OpenForm(null); // ملاحظة: يجب إنشاء نموذج الإعدادات لاحقا
+            // تحديد العنصر المحدد في الأكورديون
+            accordionControl.SelectedElement = accordionControlSettings;
+            
+            // تحديث العنوان
+            labelControlPageTitle.Text = "إعدادات النظام";
+            
+            // تحديث الأيقونة
+            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("settings");
+            
+            // ملاحظة: يجب إنشاء نموذج الإعدادات لاحقا
+            OpenForm(null);
+        }
+
+        /// <summary>
+        /// تسجيل الخروج من النظام
+        /// </summary>
+        private void LogoutUser()
+        {
+            // تأكيد تسجيل الخروج
+            try
+            {
+                DialogResult result = XtraMessageBox.Show(
+                    "هل أنت متأكد من أنك تريد تسجيل الخروج؟",
+                    "تسجيل الخروج",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxIcon.Question);
+                
+                if (result == DialogResult.Yes)
+                {
+                    // إيقاف المؤقت
+                    if (_dateTimeTimer != null)
+                    {
+                        _dateTimeTimer.Stop();
+                        _dateTimeTimer.Dispose();
+                    }
+                    
+                    // تسجيل الخروج
+                    SessionManager.Logout();
+                    
+                    // إغلاق النموذج الرئيسي
+                    this.DialogResult = DialogResult.Cancel;
+                    this.Close();
+                    
+                    // عرض نموذج تسجيل الدخول مرة أخرى
+                    LoginForm loginForm = new LoginForm();
+                    if (loginForm.ShowDialog() == DialogResult.OK)
+                    {
+                        // إعادة فتح النموذج الرئيسي
+                        MainForm mainForm = new MainForm();
+                        mainForm.Show();
+                    }
+                    else
+                    {
+                        // إنهاء التطبيق
+                        Application.Exit();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل تسجيل الخروج");
+                Application.Exit();
+            }
         }
 
         /// <summary>
@@ -391,26 +568,9 @@ namespace HR.UI.Forms
         }
 
         /// <summary>
-        /// حدث تحديث الوقت والتاريخ
-        /// </summary>
-        private void TimerDateTime_Tick(object sender, EventArgs e)
-        {
-            // تحديث التاريخ والوقت
-            try
-            {
-                DateTime now = DateTime.Now;
-                barStaticItemDateTime.Caption = $"{now:yyyy/MM/dd HH:mm:ss}";
-            }
-            catch
-            {
-                // تجاهل أي أخطاء في تحديث الوقت
-            }
-        }
-
-        /// <summary>
         /// حدث النقر على زر الإشعارات
         /// </summary>
-        private void BarButtonItemNotifications_ItemClick(object sender, ItemClickEventArgs e)
+        private void ButtonNotifications_Click(object sender, EventArgs e)
         {
             // عرض الإشعارات
             try
@@ -430,7 +590,7 @@ namespace HR.UI.Forms
         /// <summary>
         /// حدث النقر على زر الملف الشخصي
         /// </summary>
-        private void BarButtonItemUserProfile_ItemClick(object sender, ItemClickEventArgs e)
+        private void ButtonUserProfile_Click(object sender, EventArgs e)
         {
             // عرض الملف الشخصي للمستخدم
             try
@@ -448,74 +608,9 @@ namespace HR.UI.Forms
         }
 
         /// <summary>
-        /// حدث النقر على زر تسجيل الخروج
+        /// حدث النقر على زر المساعدة
         /// </summary>
-        private void BarButtonItemLogout_ItemClick(object sender, ItemClickEventArgs e)
-        {
-            // تأكيد تسجيل الخروج
-            try
-            {
-                DialogResult result = XtraMessageBox.Show(
-                    "هل أنت متأكد من أنك تريد تسجيل الخروج؟",
-                    "تسجيل الخروج",
-                    MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question);
-                
-                if (result == DialogResult.Yes)
-                {
-                    // تسجيل الخروج
-                    SessionManager.Logout();
-                    
-                    // إغلاق النموذج الرئيسي
-                    this.DialogResult = DialogResult.Cancel;
-                    this.Close();
-                    
-                    // عرض نموذج تسجيل الدخول مرة أخرى
-                    LoginForm loginForm = new LoginForm();
-                    if (loginForm.ShowDialog() == DialogResult.OK)
-                    {
-                        // إعادة فتح النموذج الرئيسي
-                        MainForm mainForm = new MainForm();
-                        mainForm.Show();
-                    }
-                    else
-                    {
-                        // إنهاء التطبيق
-                        Application.Exit();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل تسجيل الخروج");
-                Application.Exit();
-            }
-        }
-
-        /// <summary>
-        /// حدث النقر على زر تغيير كلمة المرور
-        /// </summary>
-        private void BarButtonItemChangePassword_ItemClick(object sender, ItemClickEventArgs e)
-        {
-            // عرض نموذج تغيير كلمة المرور
-            try
-            {
-                XtraMessageBox.Show(
-                    "سيظهر نموذج تغيير كلمة المرور هنا.",
-                    "تغيير كلمة المرور",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل عرض نموذج تغيير كلمة المرور");
-            }
-        }
-
-        /// <summary>
-        /// حدث النقر على زر حول البرنامج
-        /// </summary>
-        private void BarButtonItemAbout_ItemClick(object sender, ItemClickEventArgs e)
+        private void ButtonHelp_Click(object sender, EventArgs e)
         {
             // عرض معلومات حول البرنامج
             try
@@ -529,6 +624,26 @@ namespace HR.UI.Forms
             catch (Exception ex)
             {
                 LogManager.LogException(ex, "فشل عرض معلومات حول البرنامج");
+            }
+        }
+
+        /// <summary>
+        /// حدث النقر على زر الإعدادات السريعة
+        /// </summary>
+        private void ButtonSettings_Click(object sender, EventArgs e)
+        {
+            // عرض إعدادات سريعة
+            try
+            {
+                XtraMessageBox.Show(
+                    "ستظهر قائمة الإعدادات السريعة هنا.",
+                    "الإعدادات",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض الإعدادات السريعة");
             }
         }
     }

@@ -1,7 +1,9 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using System.IO;
 using DevExpress.XtraEditors;
+using DevExpress.LookAndFeel;
 using HR.Core;
 using HR.Models.DTOs;
 
@@ -14,6 +16,9 @@ namespace HR.UI.Forms
     {
         private int _failedAttempts = 0;
         private const int MaxFailedAttempts = 5;
+        
+        // مسار ملف حفظ بيانات الدخول
+        private readonly string _credentialsFilePath;
 
         /// <summary>
         /// تهيئة نموذج تسجيل الدخول
@@ -22,16 +27,21 @@ namespace HR.UI.Forms
         {
             InitializeComponent();
             
+            // تهيئة مسار ملف حفظ بيانات الدخول
+            _credentialsFilePath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "HRSystem", 
+                "credentials.dat");
+            
             // تعيين خصائص الواجهة
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.StartPosition = FormStartPosition.CenterScreen;
-            this.Icon = Properties.Resources.Icon;
             
             // إعداد مكونات DevExpress 
-            this.pictureEdit1.Properties.ShowCameraMenuItem = DevExpress.XtraEditors.Controls.CameraMenuItemVisibility.Auto;
-            this.pictureEdit1.Properties.SizeMode = DevExpress.XtraEditors.Controls.PictureSizeMode.Squeeze;
+            this.pictureEditLogo.Properties.ShowCameraMenuItem = DevExpress.XtraEditors.Controls.CameraMenuItemVisibility.Auto;
+            this.pictureEditLogo.Properties.SizeMode = DevExpress.XtraEditors.Controls.PictureSizeMode.Zoom;
             
             // إضافة الأحداث
             this.Load += LoginForm_Load;
@@ -40,9 +50,12 @@ namespace HR.UI.Forms
             this.buttonLogin.Click += ButtonLogin_Click;
             this.buttonCancel.Click += ButtonCancel_Click;
             this.linkLabelForgotPassword.Click += LinkLabelForgotPassword_Click;
+            this.toggleSwitchShowPassword.Toggled += ToggleSwitchShowPassword_Toggled;
+            this.checkRememberMe.CheckedChanged += CheckRememberMe_CheckedChanged;
             
             // إعدادات الواجهة
             SetCompanyInfo();
+            LoadSavedCredentials();
             textEditUsername.Select();
         }
 
@@ -59,6 +72,20 @@ namespace HR.UI.Forms
             
             // عرض اسم جهاز المستخدم
             this.labelComputer.Text = $"اسم الجهاز: {Environment.MachineName}";
+            
+            // تركيز حقل الإدخال المناسب
+            if (string.IsNullOrWhiteSpace(textEditUsername.Text))
+            {
+                textEditUsername.Focus();
+            }
+            else if (string.IsNullOrWhiteSpace(textEditPassword.Text))
+            {
+                textEditPassword.Focus();
+            }
+            else
+            {
+                buttonLogin.Focus();
+            }
         }
 
         /// <summary>
@@ -78,7 +105,7 @@ namespace HR.UI.Forms
                     {
                         using (var stream = new System.IO.MemoryStream(companySummary.Logo))
                         {
-                            this.pictureEdit1.Image = Image.FromStream(stream);
+                            this.pictureEditLogo.Image = Image.FromStream(stream);
                         }
                     }
                     
@@ -156,6 +183,27 @@ namespace HR.UI.Forms
                 MessageBoxButtons.OK,
                 MessageBoxIcon.Information);
         }
+        
+        /// <summary>
+        /// حدث تبديل حالة إظهار كلمة المرور
+        /// </summary>
+        private void ToggleSwitchShowPassword_Toggled(object sender, EventArgs e)
+        {
+            // تغيير حالة إظهار كلمة المرور
+            textEditPassword.Properties.UseSystemPasswordChar = !toggleSwitchShowPassword.IsOn;
+        }
+        
+        /// <summary>
+        /// حدث تغيير حالة تذكر بيانات الدخول
+        /// </summary>
+        private void CheckRememberMe_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!checkRememberMe.Checked)
+            {
+                // إذا تم إلغاء تحديد الخيار، نقوم بحذف أي بيانات محفوظة
+                ClearSavedCredentials();
+            }
+        }
 
         /// <summary>
         /// محاولة تسجيل الدخول
@@ -204,6 +252,16 @@ namespace HR.UI.Forms
                     // إعادة تعيين عدد المحاولات الفاشلة
                     _failedAttempts = 0;
                     
+                    // حفظ بيانات المستخدم إذا تم اختيار تذكرها
+                    if (checkRememberMe.Checked)
+                    {
+                        SaveCredentials(username, password);
+                    }
+                    else
+                    {
+                        ClearSavedCredentials();
+                    }
+                    
                     // التحقق مما إذا كان يجب على المستخدم تغيير كلمة المرور
                     if (result.User.MustChangePassword)
                     {
@@ -214,7 +272,6 @@ namespace HR.UI.Forms
                             MessageBoxIcon.Information);
                         
                         // فتح نموذج تغيير كلمة المرور
-                        // Using a fallback approach since we haven't created ChangePasswordForm yet
                         if (ShowChangePasswordDialog(result.User.ID))
                         {
                             this.DialogResult = DialogResult.OK;
@@ -286,6 +343,8 @@ namespace HR.UI.Forms
             this.textEditPassword.Enabled = enable;
             this.buttonLogin.Enabled = enable;
             this.linkLabelForgotPassword.Enabled = enable;
+            this.checkRememberMe.Enabled = enable;
+            this.toggleSwitchShowPassword.Enabled = enable;
             
             if (!enable)
             {
@@ -439,17 +498,8 @@ namespace HR.UI.Forms
                     try
                     {
                         // تحديث كلمة المرور
-                        var dto = new ChangePasswordDTO
-                        {
-                            UserID = userId,
-                            CurrentPassword = textCurrent.Text,
-                            NewPassword = textNew.Text,
-                            ConfirmPassword = textConfirm.Text
-                        };
+                        bool success = SecurityManager.ChangePassword(userId, textCurrent.Text, textNew.Text);
                         
-                        // ملاحظة: في التطبيق الفعلي، يجب استخدام واجهة لتغيير كلمة المرور
-                        /*
-                        bool success = UserService.ChangePassword(dto);
                         if (success)
                         {
                             XtraMessageBox.Show("تم تغيير كلمة المرور بنجاح.", "تغيير كلمة المرور", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -461,12 +511,6 @@ namespace HR.UI.Forms
                             XtraMessageBox.Show("فشل تغيير كلمة المرور. الرجاء التحقق من كلمة المرور الحالية.", "تغيير كلمة المرور", MessageBoxButtons.OK, MessageBoxIcon.Error);
                             textCurrent.Focus();
                         }
-                        */
-                        
-                        // للتجربة فقط نفترض نجاح العملية
-                        XtraMessageBox.Show("تم تغيير كلمة المرور بنجاح.", "تغيير كلمة المرور", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        form.DialogResult = DialogResult.OK;
-                        form.Close();
                     }
                     catch (Exception ex)
                     {
@@ -482,6 +526,147 @@ namespace HR.UI.Forms
                 
                 return form.ShowDialog() == DialogResult.OK;
             }
+        }
+        
+        /// <summary>
+        /// حفظ بيانات الدخول
+        /// </summary>
+        private void SaveCredentials(string username, string password)
+        {
+            try
+            {
+                // إنشاء دليل التخزين إذا لم يكن موجوداً
+                string directory = Path.GetDirectoryName(_credentialsFilePath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+                
+                // تشفير البيانات
+                string encryptedData = EncryptCredentials(username, password);
+                
+                // حفظ البيانات المشفرة
+                File.WriteAllText(_credentialsFilePath, encryptedData);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في حفظ بيانات الدخول");
+                // تجاهل الخطأ واستمر بدون تخزين البيانات
+            }
+        }
+        
+        /// <summary>
+        /// حذف بيانات الدخول المحفوظة
+        /// </summary>
+        private void ClearSavedCredentials()
+        {
+            try
+            {
+                if (File.Exists(_credentialsFilePath))
+                {
+                    File.Delete(_credentialsFilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في حذف بيانات الدخول المحفوظة");
+                // تجاهل الخطأ
+            }
+        }
+        
+        /// <summary>
+        /// تحميل بيانات الدخول المحفوظة
+        /// </summary>
+        private void LoadSavedCredentials()
+        {
+            try
+            {
+                if (File.Exists(_credentialsFilePath))
+                {
+                    // قراءة البيانات المشفرة
+                    string encryptedData = File.ReadAllText(_credentialsFilePath);
+                    
+                    // فك تشفير البيانات
+                    var credentials = DecryptCredentials(encryptedData);
+                    
+                    if (credentials != null)
+                    {
+                        // ملء حقول النموذج
+                        textEditUsername.Text = credentials.Item1;
+                        textEditPassword.Text = credentials.Item2;
+                        checkRememberMe.Checked = true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في تحميل بيانات الدخول المحفوظة");
+                // تجاهل الخطأ واستمر بدون تحميل البيانات
+                
+                // حذف الملف المعطوب
+                ClearSavedCredentials();
+            }
+        }
+        
+        /// <summary>
+        /// تشفير بيانات الدخول
+        /// </summary>
+        private string EncryptCredentials(string username, string password)
+        {
+            try
+            {
+                // استخدام مفتاح خاص بالجهاز لتشفير البيانات
+                byte[] key = GetMachineKey();
+                string data = $"{username}|{password}";
+                
+                return SecurityManager.Encrypt(data, key);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في تشفير بيانات الدخول");
+                throw;
+            }
+        }
+        
+        /// <summary>
+        /// فك تشفير بيانات الدخول
+        /// </summary>
+        private Tuple<string, string> DecryptCredentials(string encryptedData)
+        {
+            try
+            {
+                // استخدام مفتاح خاص بالجهاز لفك تشفير البيانات
+                byte[] key = GetMachineKey();
+                string data = SecurityManager.Decrypt(encryptedData, key);
+                
+                if (string.IsNullOrEmpty(data) || !data.Contains("|"))
+                {
+                    return null;
+                }
+                
+                string[] parts = data.Split('|');
+                if (parts.Length != 2)
+                {
+                    return null;
+                }
+                
+                return new Tuple<string, string>(parts[0], parts[1]);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في فك تشفير بيانات الدخول");
+                return null;
+            }
+        }
+        
+        /// <summary>
+        /// الحصول على مفتاح مشتق من معلومات الجهاز
+        /// </summary>
+        private byte[] GetMachineKey()
+        {
+            // استخدام اسم الجهاز ومعرف المستخدم لإنشاء مفتاح فريد لهذا الجهاز
+            string machineSpecificInfo = Environment.MachineName + Environment.UserName;
+            return SecurityManager.DeriveKeyFromString(machineSpecificInfo);
         }
     }
 }
