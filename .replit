@@ -1,0 +1,27 @@
+modules = ["dotnet", "dotnet-8.0"]
+
+[nix]
+channel = "stable-24_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "HR System"
+
+[[workflows.workflow]]
+name = "HR System"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "dotnet build -c Release && dotnet bin/Release/net8.0-windows/HRSystem.dll"
+
+[deployment]
+run = ["sh", "-c", "mcs -r:System.Data.dll -r:System.Configuration.dll -r:System.Windows.Forms.dll -r:System.Drawing.dll -out:hr_system.exe Program.cs Core/*.cs Models/*.cs DataAccess/*.cs && mono hr_system.exe"]
