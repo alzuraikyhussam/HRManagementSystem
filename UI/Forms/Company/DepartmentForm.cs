@@ -18,6 +18,9 @@ namespace HR.UI.Forms.Company
         // قائمة الأقسام المتاحة للأب
         private List<Department> _parentDepartments;
         
+        // قائمة المناصب المتاحة لمدير القسم
+        private List<Position> _managerPositions;
+        
         // تحديد ما إذا كان هناك تغييرات
         private bool _hasChanges = false;
         
@@ -104,11 +107,11 @@ namespace HR.UI.Forms.Company
         private void RegisterChangeEvents()
         {
             textEditName.EditValueChanged += Control_ValueChanged;
-            textEditCode.EditValueChanged += Control_ValueChanged;
             lookUpEditParentDepartment.EditValueChanged += Control_ValueChanged;
+            lookUpEditManagerPosition.EditValueChanged += Control_ValueChanged;
+            textEditLocation.EditValueChanged += Control_ValueChanged;
             checkEditIsActive.CheckedChanged += Control_ValueChanged;
             memoEditDescription.EditValueChanged += Control_ValueChanged;
-            spinEditOrder.EditValueChanged += Control_ValueChanged;
         }
 
         /// <summary>
@@ -123,6 +126,9 @@ namespace HR.UI.Forms.Company
                 
                 // جلب الأقسام المتاحة للأب
                 LoadParentDepartments();
+                
+                // جلب المناصب المتاحة لمدير القسم
+                LoadManagerPositions();
                 
                 // عرض بيانات القسم
                 DisplayDepartmentData();
@@ -185,6 +191,35 @@ namespace HR.UI.Forms.Company
         }
 
         /// <summary>
+        /// جلب المناصب المتاحة لمدير القسم
+        /// </summary>
+        private void LoadManagerPositions()
+        {
+            try
+            {
+                // جلب جميع المناصب الإدارية
+                using (var unitOfWork = new UnitOfWork())
+                {
+                    _managerPositions = unitOfWork.PositionRepository.GetManagerPositions();
+                    
+                    // تعيين مصدر البيانات للقائمة المنسدلة
+                    lookUpEditManagerPosition.Properties.DataSource = _managerPositions;
+                    lookUpEditManagerPosition.Properties.DisplayMember = "Title";
+                    lookUpEditManagerPosition.Properties.ValueMember = "ID";
+                    
+                    // إضافة خيار "لا يوجد" لمنصب المدير
+                    lookUpEditManagerPosition.Properties.BestFitMode = DevExpress.XtraEditors.Controls.BestFitMode.BestFit;
+                    lookUpEditManagerPosition.Properties.NullText = "لا يوجد";
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل جلب المناصب المتاحة لمدير القسم");
+                throw;
+            }
+        }
+
+        /// <summary>
         /// استبعاد الأقسام التي تكون أبناء للقسم الحالي
         /// </summary>
         private void RemoveChildDepartments(int parentId)
@@ -212,11 +247,11 @@ namespace HR.UI.Forms.Company
             
             // عرض البيانات في الحقول
             textEditName.Text = _department.Name;
-            textEditCode.Text = _department.Code;
             lookUpEditParentDepartment.EditValue = _department.ParentID;
+            lookUpEditManagerPosition.EditValue = _department.ManagerPositionID;
+            textEditLocation.Text = _department.Location;
             checkEditIsActive.Checked = _department.IsActive;
             memoEditDescription.Text = _department.Description;
-            spinEditOrder.Value = _department.DisplayOrder ?? 0;
             
             // إعادة تعيين حالة التغييرات
             _hasChanges = false;
@@ -335,42 +370,6 @@ namespace HR.UI.Forms.Company
                 }
             }
             
-            // التحقق من كود القسم (إذا تم إدخاله)
-            if (!string.IsNullOrWhiteSpace(textEditCode.Text))
-            {
-                using (var unitOfWork = new UnitOfWork())
-                {
-                    if (_isNewDepartment)
-                    {
-                        // في حالة الإضافة
-                        if (unitOfWork.DepartmentRepository.Exists(d => d.Code == textEditCode.Text))
-                        {
-                            XtraMessageBox.Show(
-                                "يوجد قسم آخر بنفس الكود. الرجاء اختيار كود مختلف",
-                                "خطأ في البيانات",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                            textEditCode.Focus();
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        // في حالة التعديل
-                        if (unitOfWork.DepartmentRepository.Exists(d => d.Code == textEditCode.Text && d.ID != _department.ID))
-                        {
-                            XtraMessageBox.Show(
-                                "يوجد قسم آخر بنفس الكود. الرجاء اختيار كود مختلف",
-                                "خطأ في البيانات",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                            textEditCode.Focus();
-                            return false;
-                        }
-                    }
-                }
-            }
-            
             return true;
         }
 
@@ -384,10 +383,9 @@ namespace HR.UI.Forms.Company
             
             // تحديث البيانات من الحقول
             _department.Name = textEditName.Text;
-            _department.Code = textEditCode.Text;
             _department.Description = memoEditDescription.Text;
+            _department.Location = textEditLocation.Text;
             _department.IsActive = checkEditIsActive.Checked;
-            _department.DisplayOrder = (int)spinEditOrder.Value;
             
             // تحديث القسم الأب
             if (lookUpEditParentDepartment.EditValue != null)
@@ -399,15 +397,23 @@ namespace HR.UI.Forms.Company
                 _department.ParentID = null;
             }
             
+            // تحديث منصب المدير
+            if (lookUpEditManagerPosition.EditValue != null)
+            {
+                _department.ManagerPositionID = Convert.ToInt32(lookUpEditManagerPosition.EditValue);
+            }
+            else
+            {
+                _department.ManagerPositionID = null;
+            }
+            
             // تحديث تواريخ الإنشاء والتعديل
             if (_isNewDepartment)
             {
-                _department.CreatedDate = DateTime.Now;
-                _department.CreatedBy = SessionManager.CurrentUser?.ID;
+                _department.CreatedAt = DateTime.Now;
             }
             
-            _department.ModifiedDate = DateTime.Now;
-            _department.ModifiedBy = SessionManager.CurrentUser?.ID;
+            _department.UpdatedAt = DateTime.Now;
         }
 
         /// <summary>

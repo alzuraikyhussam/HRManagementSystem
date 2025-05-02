@@ -31,11 +31,11 @@ namespace HR.UI.Forms.Company
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(DepartmentForm));
             this.layoutControl = new DevExpress.XtraLayout.LayoutControl();
             this.textEditName = new DevExpress.XtraEditors.TextEdit();
-            this.textEditCode = new DevExpress.XtraEditors.TextEdit();
             this.lookUpEditParentDepartment = new DevExpress.XtraEditors.LookUpEdit();
+            this.lookUpEditManagerPosition = new DevExpress.XtraEditors.LookUpEdit();
+            this.textEditLocation = new DevExpress.XtraEditors.TextEdit();
             this.checkEditIsActive = new DevExpress.XtraEditors.CheckEdit();
             this.memoEditDescription = new DevExpress.XtraEditors.MemoEdit();
-            this.spinEditOrder = new DevExpress.XtraEditors.SpinEdit();
             this.panelControl1 = new DevExpress.XtraEditors.PanelControl();
             this.buttonCancel = new DevExpress.XtraEditors.SimpleButton();
             this.buttonSave = new DevExpress.XtraEditors.SimpleButton();
