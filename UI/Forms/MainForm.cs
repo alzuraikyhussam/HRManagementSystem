@@ -377,17 +377,32 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowEmployeeManagement()
         {
-            // تحديد العنصر المحدد في الأكورديون
-            accordionControl.SelectedElement = accordionControlEmployees;
-            
-            // تحديث العنوان
-            labelControlPageTitle.Text = "إدارة الموظفين";
-            
-            // تحديث الأيقونة
-            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("employees");
-            
-            // ملاحظة: يجب إنشاء نموذج إدارة الموظفين لاحقا
-            OpenForm(null);
+            try
+            {
+                // تحديد العنصر المحدد في الأكورديون
+                accordionControl.SelectedElement = accordionControlEmployees;
+                
+                // تحديث العنوان
+                labelControlPageTitle.Text = "إدارة الموظفين";
+                
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("employees");
+                
+                // إنشاء نموذج قائمة الموظفين
+                var employeesListForm = new Employees.EmployeesListForm();
+                
+                // فتح النموذج في منطقة العمل
+                OpenForm(employeesListForm);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض إدارة الموظفين");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض إدارة الموظفين: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
@@ -395,17 +410,32 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowAttendanceManagement()
         {
-            // تحديد العنصر المحدد في الأكورديون
-            accordionControl.SelectedElement = accordionControlAttendance;
-            
-            // تحديث العنوان
-            labelControlPageTitle.Text = "إدارة الحضور والانصراف";
-            
-            // تحديث الأيقونة
-            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("attendance");
-            
-            // ملاحظة: يجب إنشاء نموذج إدارة الحضور لاحقا
-            OpenForm(null);
+            try
+            {
+                // تحديد العنصر المحدد في الأكورديون
+                accordionControl.SelectedElement = accordionControlAttendance;
+                
+                // تحديث العنوان
+                labelControlPageTitle.Text = "إدارة الحضور والانصراف";
+                
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("attendance");
+                
+                // إنشاء نموذج إدارة الحضور
+                var attendanceRecordsForm = new Attendance.AttendanceRecordsForm();
+                
+                // فتح النموذج في منطقة العمل
+                OpenForm(attendanceRecordsForm);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض إدارة الحضور");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض إدارة الحضور: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
@@ -413,17 +443,37 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowLeaveManagement()
         {
-            // تحديد العنصر المحدد في الأكورديون
-            accordionControl.SelectedElement = accordionControlLeaves;
-            
-            // تحديث العنوان
-            labelControlPageTitle.Text = "إدارة الإجازات";
-            
-            // تحديث الأيقونة
-            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("leaves");
-            
-            // ملاحظة: يجب إنشاء نموذج إدارة الإجازات لاحقا
-            OpenForm(null);
+            try
+            {
+                // تحديد العنصر المحدد في الأكورديون
+                accordionControl.SelectedElement = accordionControlLeaves;
+                
+                // تحديث العنوان
+                labelControlPageTitle.Text = "إدارة الإجازات";
+                
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("leaves");
+                
+                // هنا يمكن إضافة أو إنشاء نموذج إدارة الإجازات
+                // مؤقتاً، نعرض رسالة عن عدم اكتمال هذه الميزة
+                XtraMessageBox.Show(
+                    "نموذج إدارة الإجازات قيد التطوير",
+                    "إدارة الإجازات",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                
+                // تنظيف منطقة المحتوى
+                OpenForm(null);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض إدارة الإجازات");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض إدارة الإجازات: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
@@ -431,17 +481,37 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowPayrollManagement()
         {
-            // تحديد العنصر المحدد في الأكورديون
-            accordionControl.SelectedElement = accordionControlPayroll;
-            
-            // تحديث العنوان
-            labelControlPageTitle.Text = "إدارة الرواتب";
-            
-            // تحديث الأيقونة
-            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("payroll");
-            
-            // ملاحظة: يجب إنشاء نموذج إدارة الرواتب لاحقا
-            OpenForm(null);
+            try
+            {
+                // تحديد العنصر المحدد في الأكورديون
+                accordionControl.SelectedElement = accordionControlPayroll;
+                
+                // تحديث العنوان
+                labelControlPageTitle.Text = "إدارة الرواتب";
+                
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("payroll");
+                
+                // هنا يمكن إضافة أو إنشاء نموذج إدارة الرواتب
+                // مؤقتاً، نعرض رسالة عن عدم اكتمال هذه الميزة
+                XtraMessageBox.Show(
+                    "نموذج إدارة الرواتب قيد التطوير",
+                    "إدارة الرواتب",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                
+                // تنظيف منطقة المحتوى
+                OpenForm(null);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض إدارة الرواتب");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض إدارة الرواتب: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
@@ -449,17 +519,37 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowReportsManagement()
         {
-            // تحديد العنصر المحدد في الأكورديون
-            accordionControl.SelectedElement = accordionControlReports;
-            
-            // تحديث العنوان
-            labelControlPageTitle.Text = "التقارير";
-            
-            // تحديث الأيقونة
-            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("reports");
-            
-            // ملاحظة: يجب إنشاء نموذج إدارة التقارير لاحقا
-            OpenForm(null);
+            try
+            {
+                // تحديد العنصر المحدد في الأكورديون
+                accordionControl.SelectedElement = accordionControlReports;
+                
+                // تحديث العنوان
+                labelControlPageTitle.Text = "التقارير";
+                
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("reports");
+                
+                // هنا يمكن إضافة أو إنشاء نموذج إدارة التقارير
+                // مؤقتاً، نعرض رسالة عن عدم اكتمال هذه الميزة
+                XtraMessageBox.Show(
+                    "نموذج إدارة التقارير قيد التطوير",
+                    "التقارير",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                
+                // تنظيف منطقة المحتوى
+                OpenForm(null);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض إدارة التقارير");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض إدارة التقارير: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
@@ -467,17 +557,37 @@ namespace HR.UI.Forms
         /// </summary>
         private void ShowSettings()
         {
-            // تحديد العنصر المحدد في الأكورديون
-            accordionControl.SelectedElement = accordionControlSettings;
-            
-            // تحديث العنوان
-            labelControlPageTitle.Text = "إعدادات النظام";
-            
-            // تحديث الأيقونة
-            svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("settings");
-            
-            // ملاحظة: يجب إنشاء نموذج الإعدادات لاحقا
-            OpenForm(null);
+            try
+            {
+                // تحديد العنصر المحدد في الأكورديون
+                accordionControl.SelectedElement = accordionControlSettings;
+                
+                // تحديث العنوان
+                labelControlPageTitle.Text = "إعدادات النظام";
+                
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("settings");
+                
+                // هنا يمكن إضافة أو إنشاء نموذج إعدادات النظام
+                // مؤقتاً، نعرض رسالة عن عدم اكتمال هذه الميزة
+                XtraMessageBox.Show(
+                    "نموذج إعدادات النظام قيد التطوير",
+                    "إعدادات النظام",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+                
+                // تنظيف منطقة المحتوى
+                OpenForm(null);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض إعدادات النظام");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض إعدادات النظام: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
         }
 
         /// <summary>
