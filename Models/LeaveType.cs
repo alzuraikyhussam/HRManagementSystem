@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج أنواع الإجازات
+    /// نموذج أنواع الإجازات - يتوافق مع جدول LeaveTypes في قاعدة البيانات
     /// </summary>
     public class LeaveType
     {

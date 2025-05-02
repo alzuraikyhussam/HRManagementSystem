@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج بيانات الموظف
+    /// نموذج بيانات الموظف - يتوافق مع جدول Employees في قاعدة البيانات
     /// </summary>
     public class Employee
     {
@@ -172,6 +172,11 @@ namespace HR.Models
         /// معرف المناوبة
         /// </summary>
         public int? WorkShiftID { get; set; }
+        
+        /// <summary>
+        /// المناوبة
+        /// </summary>
+        public virtual WorkShift WorkShift { get; set; }
 
         /// <summary>
         /// حالة الموظف

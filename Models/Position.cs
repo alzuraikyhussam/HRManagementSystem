@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج المسمى الوظيفي
+    /// نموذج المسمى الوظيفي - يتوافق مع جدول Positions في قاعدة البيانات
     /// </summary>
     public class Position
     {
@@ -62,11 +62,21 @@ namespace HR.Models
         /// تاريخ الإنشاء
         /// </summary>
         public DateTime? CreatedAt { get; set; }
+        
+        /// <summary>
+        /// منشئ السجل
+        /// </summary>
+        public int? CreatedBy { get; set; }
 
         /// <summary>
         /// تاريخ التعديل
         /// </summary>
         public DateTime? UpdatedAt { get; set; }
+        
+        /// <summary>
+        /// معدل السجل
+        /// </summary>
+        public int? UpdatedBy { get; set; }
 
         /// <summary>
         /// قائمة الموظفين الذين يشغلون هذا المسمى

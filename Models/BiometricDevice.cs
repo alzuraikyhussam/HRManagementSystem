@@ -3,7 +3,7 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج جهاز البصمة
+    /// نموذج جهاز البصمة - يتوافق مع جدول BiometricDevices في قاعدة البيانات
     /// </summary>
     public class BiometricDevice
     {
@@ -15,7 +15,7 @@ namespace HR.Models
         /// <summary>
         /// اسم الجهاز
         /// </summary>
-        public string DeviceName { get; set; }
+        public string Name { get; set; }
 
         /// <summary>
         /// موديل الجهاز

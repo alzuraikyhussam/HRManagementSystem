@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج القسم/الإدارة
+    /// نموذج القسم/الإدارة - يتوافق مع جدول Departments في قاعدة البيانات
     /// </summary>
     public class Department
     {

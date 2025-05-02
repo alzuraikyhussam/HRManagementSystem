@@ -3,7 +3,7 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج طلب الإجازة
+    /// نموذج طلب الإجازة - يتوافق مع جدول LeaveRequests في قاعدة البيانات
     /// </summary>
     public class LeaveRequest
     {
@@ -43,9 +43,14 @@ namespace HR.Models
         public DateTime EndDate { get; set; }
 
         /// <summary>
+        /// تاريخ العودة
+        /// </summary>
+        public DateTime? ReturnDate { get; set; }
+        
+        /// <summary>
         /// عدد أيام الإجازة
         /// </summary>
-        public int DaysCount { get; set; }
+        public int TotalDays { get; set; }
 
         /// <summary>
         /// سبب الإجازة

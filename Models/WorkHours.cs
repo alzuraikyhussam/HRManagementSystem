@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج فترات العمل
+    /// نموذج فترات العمل - يتوافق مع جدول WorkHours في قاعدة البيانات
     /// </summary>
     public class WorkHours
     {
@@ -57,6 +57,11 @@ namespace HR.Models
         /// إجمالي ساعات العمل (محسوبة)
         /// </summary>
         public decimal? TotalHours { get; set; }
+
+        /// <summary>
+        /// حالة فترة العمل (نشط/غير نشط)
+        /// </summary>
+        public bool IsActive { get; set; }
 
         /// <summary>
         /// تاريخ الإنشاء

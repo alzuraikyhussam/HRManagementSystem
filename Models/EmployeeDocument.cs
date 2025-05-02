@@ -3,7 +3,7 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج وثائق الموظف
+    /// نموذج وثائق الموظف - يتوافق مع جدول EmployeeDocuments في قاعدة البيانات
     /// </summary>
     public class EmployeeDocument
     {

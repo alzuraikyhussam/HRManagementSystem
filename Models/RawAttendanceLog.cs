@@ -3,7 +3,7 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج سجل البصمة الخام
+    /// نموذج سجل البصمة الخام - يتوافق مع جدول RawAttendanceLogs في قاعدة البيانات
     /// </summary>
     public class RawAttendanceLog
     {
@@ -15,7 +15,7 @@ namespace HR.Models
         /// <summary>
         /// معرف الجهاز
         /// </summary>
-        public int DeviceID { get; set; }
+        public int BiometricDeviceID { get; set; }
 
         /// <summary>
         /// معرف المستخدم في جهاز البصمة
@@ -30,7 +30,7 @@ namespace HR.Models
         /// <summary>
         /// نوع السجل (دخول/خروج)
         /// </summary>
-        public int? LogType { get; set; }
+        public string PunchType { get; set; }
 
         /// <summary>
         /// طريقة التحقق (بصمة، بطاقة، كلمة مرور)
@@ -61,6 +61,16 @@ namespace HR.Models
         /// وقت المزامنة
         /// </summary>
         public DateTime SyncTime { get; set; }
+        
+        /// <summary>
+        /// تاريخ الإنشاء
+        /// </summary>
+        public DateTime? CreatedAt { get; set; }
+        
+        /// <summary>
+        /// منشئ السجل
+        /// </summary>
+        public int? CreatedBy { get; set; }
 
         /// <summary>
         /// الموظف المرتبط
@@ -70,6 +80,6 @@ namespace HR.Models
         /// <summary>
         /// الجهاز المصدر
         /// </summary>
-        public virtual BiometricDevice Device { get; set; }
+        public virtual BiometricDevice BiometricDevice { get; set; }
     }
 }

@@ -3,7 +3,7 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج سجل الحضور والانصراف
+    /// نموذج سجل الحضور والانصراف - يتوافق مع جدول AttendanceRecords في قاعدة البيانات
     /// </summary>
     public class AttendanceRecord
     {
@@ -23,39 +23,39 @@ namespace HR.Models
         public virtual Employee Employee { get; set; }
 
         /// <summary>
-        /// تاريخ التسجيل
+        /// تاريخ الحضور
         /// </summary>
-        public DateTime RecordDate { get; set; }
+        public DateTime AttendanceDate { get; set; }
 
         /// <summary>
         /// وقت الحضور
         /// </summary>
-        public DateTime? CheckInTime { get; set; }
+        public DateTime? TimeIn { get; set; }
 
         /// <summary>
         /// وقت الانصراف
         /// </summary>
-        public DateTime? CheckOutTime { get; set; }
+        public DateTime? TimeOut { get; set; }
 
         /// <summary>
-        /// نوع سجل الحضور
+        /// معرف فترة العمل
         /// </summary>
-        public string RecordType { get; set; }
+        public int? WorkHoursID { get; set; }
+        
+        /// <summary>
+        /// فترة العمل المرتبطة
+        /// </summary>
+        public virtual WorkHours WorkHoursShift { get; set; }
 
         /// <summary>
-        /// بصمة الحضور
+        /// حالة الحضور (حاضر، غائب، متأخر، مغادرة مبكرة، إجازة)
         /// </summary>
-        public int? CheckInDeviceID { get; set; }
-
+        public string Status { get; set; }
+        
         /// <summary>
-        /// بصمة الانصراف
+        /// هل الإدخال يدوي
         /// </summary>
-        public int? CheckOutDeviceID { get; set; }
-
-        /// <summary>
-        /// حالة الحضور (طبيعي، متأخر، إلخ)
-        /// </summary>
-        public string AttendanceStatus { get; set; }
+        public bool IsManualEntry { get; set; }
 
         /// <summary>
         /// عدد دقائق التأخير
@@ -73,9 +73,9 @@ namespace HR.Models
         public int? OvertimeMinutes { get; set; }
 
         /// <summary>
-        /// إجمالي ساعات العمل (محسوبة)
+        /// إجمالي دقائق العمل
         /// </summary>
-        public decimal? WorkHours { get; set; }
+        public int? WorkedMinutes { get; set; }
 
         /// <summary>
         /// ملاحظات

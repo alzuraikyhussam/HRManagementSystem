@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج ورديات العمل
+    /// نموذج ورديات العمل - يتوافق مع جدول WorkShifts في قاعدة البيانات
     /// </summary>
     public class WorkShift
     {
