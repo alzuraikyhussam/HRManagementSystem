@@ -8,24 +8,22 @@ using HR.Models;
 namespace HR.DataAccess
 {
     /// <summary>
-    /// Repository for position operations
+    /// مستودع بيانات المسميات الوظيفية
     /// </summary>
     public class PositionRepository
     {
         /// <summary>
-        /// Gets all positions
+        /// الحصول على كافة المسميات الوظيفية
         /// </summary>
-        /// <param name="includeInactive">Whether to include inactive positions</param>
-        /// <returns>List of PositionDTO objects</returns>
+        /// <param name="includeInactive">تضمين المسميات غير النشطة</param>
+        /// <returns>قائمة بالمسميات الوظيفية</returns>
         public List<PositionDTO> GetAllPositions(bool includeInactive = false)
         {
             try
             {
                 string query = @"
-                    SELECT p.ID, p.Title, p.Description, p.DepartmentID, 
-                           d.Name AS DepartmentName, p.GradeLevel, 
-                           p.MinSalary, p.MaxSalary, p.IsManagerPosition, 
-                           p.IsActive, p.CreatedAt, p.UpdatedAt
+                    SELECT p.ID, p.Title, p.Description, p.DepartmentID, d.Name AS DepartmentName,
+                           p.GradeLevel, p.MinSalary, p.MaxSalary, p.IsManagerPosition, p.IsActive
                     FROM Positions p
                     LEFT JOIN Departments d ON p.DepartmentID = d.ID";
 
@@ -34,56 +32,54 @@ namespace HR.DataAccess
                     query += " WHERE p.IsActive = 1";
                 }
 
-                query += " ORDER BY d.Name, p.Title";
+                query += " ORDER BY p.Title";
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query);
-                List<PositionDTO> positions = new List<PositionDTO>();
-
-                foreach (DataRow row in dataTable.Rows)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query))
                 {
-                    PositionDTO position = new PositionDTO
+                    List<PositionDTO> positions = new List<PositionDTO>();
+
+                    while (reader.Read())
                     {
-                        ID = Convert.ToInt32(row["ID"]),
-                        Title = row["Title"].ToString(),
-                        Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : null,
-                        DepartmentID = row["DepartmentID"] != DBNull.Value ? Convert.ToInt32(row["DepartmentID"]) : (int?)null,
-                        DepartmentName = row["DepartmentName"] != DBNull.Value ? row["DepartmentName"].ToString() : null,
-                        GradeLevel = row["GradeLevel"] != DBNull.Value ? Convert.ToInt32(row["GradeLevel"]) : (int?)null,
-                        MinSalary = row["MinSalary"] != DBNull.Value ? Convert.ToDecimal(row["MinSalary"]) : (decimal?)null,
-                        MaxSalary = row["MaxSalary"] != DBNull.Value ? Convert.ToDecimal(row["MaxSalary"]) : (decimal?)null,
-                        IsManagerPosition = Convert.ToBoolean(row["IsManagerPosition"]),
-                        IsActive = Convert.ToBoolean(row["IsActive"]),
-                        CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                        UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null
-                    };
+                        PositionDTO position = new PositionDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Title = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            DepartmentID = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
+                            DepartmentName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                            GradeLevel = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5),
+                            MinSalary = reader.IsDBNull(6) ? (decimal?)null : reader.GetDecimal(6),
+                            MaxSalary = reader.IsDBNull(7) ? (decimal?)null : reader.GetDecimal(7),
+                            IsManagerPosition = reader.GetBoolean(8),
+                            IsActive = reader.GetBoolean(9)
+                        };
 
-                    positions.Add(position);
+                        positions.Add(position);
+                    }
+
+                    return positions;
                 }
-
-                return positions;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return new List<PositionDTO>();
+                LogManager.LogException(ex, "فشل في الحصول على كافة المسميات الوظيفية");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets positions for a specific department
+        /// الحصول على المسميات الوظيفية لإدارة معينة
         /// </summary>
-        /// <param name="departmentId">Department ID</param>
-        /// <param name="includeInactive">Whether to include inactive positions</param>
-        /// <returns>List of PositionDTO objects</returns>
+        /// <param name="departmentId">معرف الإدارة</param>
+        /// <param name="includeInactive">تضمين المسميات غير النشطة</param>
+        /// <returns>قائمة بالمسميات الوظيفية للإدارة</returns>
         public List<PositionDTO> GetPositionsByDepartment(int departmentId, bool includeInactive = false)
         {
             try
             {
                 string query = @"
-                    SELECT p.ID, p.Title, p.Description, p.DepartmentID, 
-                           d.Name AS DepartmentName, p.GradeLevel, 
-                           p.MinSalary, p.MaxSalary, p.IsManagerPosition, 
-                           p.IsActive, p.CreatedAt, p.UpdatedAt
+                    SELECT p.ID, p.Title, p.Description, p.DepartmentID, d.Name AS DepartmentName,
+                           p.GradeLevel, p.MinSalary, p.MaxSalary, p.IsManagerPosition, p.IsActive
                     FROM Positions p
                     LEFT JOIN Departments d ON p.DepartmentID = d.ID
                     WHERE p.DepartmentID = @DepartmentID";
@@ -95,58 +91,56 @@ namespace HR.DataAccess
 
                 query += " ORDER BY p.Title";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
                     new SqlParameter("@DepartmentID", departmentId)
                 };
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query, parameters);
-                List<PositionDTO> positions = new List<PositionDTO>();
-
-                foreach (DataRow row in dataTable.Rows)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query, parameters))
                 {
-                    PositionDTO position = new PositionDTO
+                    List<PositionDTO> positions = new List<PositionDTO>();
+
+                    while (reader.Read())
                     {
-                        ID = Convert.ToInt32(row["ID"]),
-                        Title = row["Title"].ToString(),
-                        Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : null,
-                        DepartmentID = row["DepartmentID"] != DBNull.Value ? Convert.ToInt32(row["DepartmentID"]) : (int?)null,
-                        DepartmentName = row["DepartmentName"] != DBNull.Value ? row["DepartmentName"].ToString() : null,
-                        GradeLevel = row["GradeLevel"] != DBNull.Value ? Convert.ToInt32(row["GradeLevel"]) : (int?)null,
-                        MinSalary = row["MinSalary"] != DBNull.Value ? Convert.ToDecimal(row["MinSalary"]) : (decimal?)null,
-                        MaxSalary = row["MaxSalary"] != DBNull.Value ? Convert.ToDecimal(row["MaxSalary"]) : (decimal?)null,
-                        IsManagerPosition = Convert.ToBoolean(row["IsManagerPosition"]),
-                        IsActive = Convert.ToBoolean(row["IsActive"]),
-                        CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                        UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null
-                    };
+                        PositionDTO position = new PositionDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Title = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            DepartmentID = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
+                            DepartmentName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                            GradeLevel = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5),
+                            MinSalary = reader.IsDBNull(6) ? (decimal?)null : reader.GetDecimal(6),
+                            MaxSalary = reader.IsDBNull(7) ? (decimal?)null : reader.GetDecimal(7),
+                            IsManagerPosition = reader.GetBoolean(8),
+                            IsActive = reader.GetBoolean(9)
+                        };
 
-                    positions.Add(position);
+                        positions.Add(position);
+                    }
+
+                    return positions;
                 }
-
-                return positions;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return new List<PositionDTO>();
+                LogManager.LogException(ex, $"فشل في الحصول على المسميات الوظيفية للإدارة رقم {departmentId}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets managerial positions
+        /// الحصول على المسميات الوظيفية الإدارية (مدير)
         /// </summary>
-        /// <param name="includeInactive">Whether to include inactive positions</param>
-        /// <returns>List of PositionDTO objects</returns>
+        /// <param name="includeInactive">تضمين المسميات غير النشطة</param>
+        /// <returns>قائمة بالمسميات الوظيفية الإدارية</returns>
         public List<PositionDTO> GetManagerPositions(bool includeInactive = false)
         {
             try
             {
                 string query = @"
-                    SELECT p.ID, p.Title, p.Description, p.DepartmentID, 
-                           d.Name AS DepartmentName, p.GradeLevel, 
-                           p.MinSalary, p.MaxSalary, p.IsManagerPosition, 
-                           p.IsActive, p.CreatedAt, p.UpdatedAt
+                    SELECT p.ID, p.Title, p.Description, p.DepartmentID, d.Name AS DepartmentName,
+                           p.GradeLevel, p.MinSalary, p.MaxSalary, p.IsManagerPosition, p.IsActive
                     FROM Positions p
                     LEFT JOIN Departments d ON p.DepartmentID = d.ID
                     WHERE p.IsManagerPosition = 1";
@@ -156,367 +150,279 @@ namespace HR.DataAccess
                     query += " AND p.IsActive = 1";
                 }
 
-                query += " ORDER BY d.Name, p.Title";
+                query += " ORDER BY p.Title";
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query);
-                List<PositionDTO> positions = new List<PositionDTO>();
-
-                foreach (DataRow row in dataTable.Rows)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query))
                 {
-                    PositionDTO position = new PositionDTO
+                    List<PositionDTO> positions = new List<PositionDTO>();
+
+                    while (reader.Read())
                     {
-                        ID = Convert.ToInt32(row["ID"]),
-                        Title = row["Title"].ToString(),
-                        Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : null,
-                        DepartmentID = row["DepartmentID"] != DBNull.Value ? Convert.ToInt32(row["DepartmentID"]) : (int?)null,
-                        DepartmentName = row["DepartmentName"] != DBNull.Value ? row["DepartmentName"].ToString() : null,
-                        GradeLevel = row["GradeLevel"] != DBNull.Value ? Convert.ToInt32(row["GradeLevel"]) : (int?)null,
-                        MinSalary = row["MinSalary"] != DBNull.Value ? Convert.ToDecimal(row["MinSalary"]) : (decimal?)null,
-                        MaxSalary = row["MaxSalary"] != DBNull.Value ? Convert.ToDecimal(row["MaxSalary"]) : (decimal?)null,
-                        IsManagerPosition = Convert.ToBoolean(row["IsManagerPosition"]),
-                        IsActive = Convert.ToBoolean(row["IsActive"]),
-                        CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                        UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null
-                    };
+                        PositionDTO position = new PositionDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Title = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            DepartmentID = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
+                            DepartmentName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                            GradeLevel = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5),
+                            MinSalary = reader.IsDBNull(6) ? (decimal?)null : reader.GetDecimal(6),
+                            MaxSalary = reader.IsDBNull(7) ? (decimal?)null : reader.GetDecimal(7),
+                            IsManagerPosition = reader.GetBoolean(8),
+                            IsActive = reader.GetBoolean(9)
+                        };
 
-                    positions.Add(position);
+                        positions.Add(position);
+                    }
+
+                    return positions;
                 }
-
-                return positions;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return new List<PositionDTO>();
+                LogManager.LogException(ex, "فشل في الحصول على المسميات الوظيفية الإدارية");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets a position by ID
+        /// الحصول على المسمى الوظيفي بواسطة المعرف
         /// </summary>
-        /// <param name="positionId">Position ID</param>
-        /// <returns>PositionDTO object</returns>
-        public PositionDTO GetPositionById(int positionId)
+        /// <param name="id">معرف المسمى الوظيفي</param>
+        /// <returns>بيانات المسمى الوظيفي</returns>
+        public PositionDTO GetPositionById(int id)
         {
             try
             {
                 string query = @"
-                    SELECT p.ID, p.Title, p.Description, p.DepartmentID, 
-                           d.Name AS DepartmentName, p.GradeLevel, 
-                           p.MinSalary, p.MaxSalary, p.IsManagerPosition, 
-                           p.IsActive, p.CreatedAt, p.UpdatedAt
+                    SELECT p.ID, p.Title, p.Description, p.DepartmentID, d.Name AS DepartmentName,
+                           p.GradeLevel, p.MinSalary, p.MaxSalary, p.IsManagerPosition, p.IsActive
                     FROM Positions p
                     LEFT JOIN Departments d ON p.DepartmentID = d.ID
-                    WHERE p.ID = @PositionID";
+                    WHERE p.ID = @ID";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
-                    new SqlParameter("@PositionID", positionId)
+                    new SqlParameter("@ID", id)
                 };
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query, parameters);
-
-                if (dataTable.Rows.Count == 0)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query, parameters))
                 {
-                    return null;
-                }
-
-                DataRow row = dataTable.Rows[0];
-
-                PositionDTO position = new PositionDTO
-                {
-                    ID = Convert.ToInt32(row["ID"]),
-                    Title = row["Title"].ToString(),
-                    Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : null,
-                    DepartmentID = row["DepartmentID"] != DBNull.Value ? Convert.ToInt32(row["DepartmentID"]) : (int?)null,
-                    DepartmentName = row["DepartmentName"] != DBNull.Value ? row["DepartmentName"].ToString() : null,
-                    GradeLevel = row["GradeLevel"] != DBNull.Value ? Convert.ToInt32(row["GradeLevel"]) : (int?)null,
-                    MinSalary = row["MinSalary"] != DBNull.Value ? Convert.ToDecimal(row["MinSalary"]) : (decimal?)null,
-                    MaxSalary = row["MaxSalary"] != DBNull.Value ? Convert.ToDecimal(row["MaxSalary"]) : (decimal?)null,
-                    IsManagerPosition = Convert.ToBoolean(row["IsManagerPosition"]),
-                    IsActive = Convert.ToBoolean(row["IsActive"]),
-                    CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                    UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null
-                };
-
-                return position;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Saves a position (inserts if ID is 0, updates otherwise)
-        /// </summary>
-        /// <param name="position">PositionDTO object</param>
-        /// <param name="userId">User ID performing the operation</param>
-        /// <returns>ID of the saved position</returns>
-        public int SavePosition(PositionDTO position, int userId)
-        {
-            try
-            {
-                string query;
-                SqlParameter[] parameters;
-
-                if (position.ID == 0)
-                {
-                    // Insert new position
-                    query = @"
-                        INSERT INTO Positions (
-                            Title, Description, DepartmentID, GradeLevel, 
-                            MinSalary, MaxSalary, IsManagerPosition, IsActive, CreatedAt)
-                        VALUES (
-                            @Title, @Description, @DepartmentID, @GradeLevel, 
-                            @MinSalary, @MaxSalary, @IsManagerPosition, @IsActive, @CreatedAt);
-                        SELECT SCOPE_IDENTITY();";
-
-                    parameters = new SqlParameter[]
+                    if (reader.Read())
                     {
-                        new SqlParameter("@Title", position.Title),
-                        new SqlParameter("@Description", (object)position.Description ?? DBNull.Value),
-                        new SqlParameter("@DepartmentID", (object)position.DepartmentID ?? DBNull.Value),
-                        new SqlParameter("@GradeLevel", (object)position.GradeLevel ?? DBNull.Value),
-                        new SqlParameter("@MinSalary", (object)position.MinSalary ?? DBNull.Value),
-                        new SqlParameter("@MaxSalary", (object)position.MaxSalary ?? DBNull.Value),
-                        new SqlParameter("@IsManagerPosition", position.IsManagerPosition),
-                        new SqlParameter("@IsActive", position.IsActive),
-                        new SqlParameter("@CreatedAt", DateTime.Now)
-                    };
+                        PositionDTO position = new PositionDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Title = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            DepartmentID = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3),
+                            DepartmentName = reader.IsDBNull(4) ? null : reader.GetString(4),
+                            GradeLevel = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5),
+                            MinSalary = reader.IsDBNull(6) ? (decimal?)null : reader.GetDecimal(6),
+                            MaxSalary = reader.IsDBNull(7) ? (decimal?)null : reader.GetDecimal(7),
+                            IsManagerPosition = reader.GetBoolean(8),
+                            IsActive = reader.GetBoolean(9)
+                        };
 
-                    object result = ConnectionManager.ExecuteScalar(query, parameters);
-                    position.ID = Convert.ToInt32(result);
-
-                    // Log activity
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    activityRepo.LogActivity(userId, "Add", "Positions", 
-                        $"Added new position: {position.Title}", position.ID, null, null);
-
-                    return position.ID;
-                }
-                else
-                {
-                    // Get existing position for activity log
-                    PositionDTO existingPosition = GetPositionById(position.ID);
-                    string oldValues = Newtonsoft.Json.JsonConvert.SerializeObject(existingPosition);
-
-                    // Update existing position
-                    query = @"
-                        UPDATE Positions
-                        SET Title = @Title,
-                            Description = @Description,
-                            DepartmentID = @DepartmentID,
-                            GradeLevel = @GradeLevel,
-                            MinSalary = @MinSalary,
-                            MaxSalary = @MaxSalary,
-                            IsManagerPosition = @IsManagerPosition,
-                            IsActive = @IsActive,
-                            UpdatedAt = @UpdatedAt
-                        WHERE ID = @ID";
-
-                    parameters = new SqlParameter[]
-                    {
-                        new SqlParameter("@ID", position.ID),
-                        new SqlParameter("@Title", position.Title),
-                        new SqlParameter("@Description", (object)position.Description ?? DBNull.Value),
-                        new SqlParameter("@DepartmentID", (object)position.DepartmentID ?? DBNull.Value),
-                        new SqlParameter("@GradeLevel", (object)position.GradeLevel ?? DBNull.Value),
-                        new SqlParameter("@MinSalary", (object)position.MinSalary ?? DBNull.Value),
-                        new SqlParameter("@MaxSalary", (object)position.MaxSalary ?? DBNull.Value),
-                        new SqlParameter("@IsManagerPosition", position.IsManagerPosition),
-                        new SqlParameter("@IsActive", position.IsActive),
-                        new SqlParameter("@UpdatedAt", DateTime.Now)
-                    };
-
-                    int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                    // Log activity
-                    if (result > 0)
-                    {
-                        ActivityLogRepository activityRepo = new ActivityLogRepository();
-                        string newValues = Newtonsoft.Json.JsonConvert.SerializeObject(position);
-                        activityRepo.LogActivity(userId, "Edit", "Positions", 
-                            $"Updated position: {position.Title}", position.ID, oldValues, newValues);
+                        return position;
                     }
 
-                    return position.ID;
+                    return null;
                 }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return 0;
+                LogManager.LogException(ex, $"فشل في الحصول على المسمى الوظيفي رقم {id}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Deletes a position
+        /// إنشاء مسمى وظيفي جديد
         /// </summary>
-        /// <param name="positionId">Position ID to delete</param>
-        /// <param name="userId">User ID performing the operation</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool DeletePosition(int positionId, int userId)
+        /// <param name="position">بيانات المسمى الوظيفي</param>
+        /// <returns>معرف المسمى الوظيفي الجديد</returns>
+        public int CreatePosition(PositionDTO position)
+        {
+            if (position == null)
+            {
+                throw new ArgumentNullException(nameof(position));
+            }
+
+            try
+            {
+                string query = @"
+                    INSERT INTO Positions (
+                        Title, Description, DepartmentID, GradeLevel,
+                        MinSalary, MaxSalary, IsManagerPosition, IsActive,
+                        CreatedAt
+                    )
+                    VALUES (
+                        @Title, @Description, @DepartmentID, @GradeLevel,
+                        @MinSalary, @MaxSalary, @IsManagerPosition, @IsActive,
+                        GETDATE()
+                    );
+                    SELECT SCOPE_IDENTITY();";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@Title", (object)position.Title ?? DBNull.Value),
+                    new SqlParameter("@Description", (object)position.Description ?? DBNull.Value),
+                    new SqlParameter("@DepartmentID", (object)position.DepartmentID ?? DBNull.Value),
+                    new SqlParameter("@GradeLevel", (object)position.GradeLevel ?? DBNull.Value),
+                    new SqlParameter("@MinSalary", (object)position.MinSalary ?? DBNull.Value),
+                    new SqlParameter("@MaxSalary", (object)position.MaxSalary ?? DBNull.Value),
+                    new SqlParameter("@IsManagerPosition", position.IsManagerPosition),
+                    new SqlParameter("@IsActive", position.IsActive)
+                };
+
+                object result = ConnectionManager.ExecuteScalar(query, parameters);
+                return Convert.ToInt32(result);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في إنشاء مسمى وظيفي جديد");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// تحديث مسمى وظيفي
+        /// </summary>
+        /// <param name="position">بيانات المسمى الوظيفي</param>
+        /// <returns>نجاح العملية</returns>
+        public bool UpdatePosition(PositionDTO position)
+        {
+            if (position == null)
+            {
+                throw new ArgumentNullException(nameof(position));
+            }
+
+            try
+            {
+                string query = @"
+                    UPDATE Positions
+                    SET Title = @Title,
+                        Description = @Description,
+                        DepartmentID = @DepartmentID,
+                        GradeLevel = @GradeLevel,
+                        MinSalary = @MinSalary,
+                        MaxSalary = @MaxSalary,
+                        IsManagerPosition = @IsManagerPosition,
+                        IsActive = @IsActive,
+                        UpdatedAt = GETDATE()
+                    WHERE ID = @ID";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@ID", position.ID),
+                    new SqlParameter("@Title", (object)position.Title ?? DBNull.Value),
+                    new SqlParameter("@Description", (object)position.Description ?? DBNull.Value),
+                    new SqlParameter("@DepartmentID", (object)position.DepartmentID ?? DBNull.Value),
+                    new SqlParameter("@GradeLevel", (object)position.GradeLevel ?? DBNull.Value),
+                    new SqlParameter("@MinSalary", (object)position.MinSalary ?? DBNull.Value),
+                    new SqlParameter("@MaxSalary", (object)position.MaxSalary ?? DBNull.Value),
+                    new SqlParameter("@IsManagerPosition", position.IsManagerPosition),
+                    new SqlParameter("@IsActive", position.IsActive)
+                };
+
+                int rowsAffected = ConnectionManager.ExecuteNonQuery(query, parameters);
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في تحديث المسمى الوظيفي رقم {position.ID}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// حذف مسمى وظيفي
+        /// </summary>
+        /// <param name="id">معرف المسمى الوظيفي</param>
+        /// <returns>نجاح العملية</returns>
+        public bool DeletePosition(int id)
         {
             try
             {
-                // Check for employees in the position
-                string checkEmployeesQuery = "SELECT COUNT(*) FROM Employees WHERE PositionID = @PositionID";
-                SqlParameter[] checkParams = new SqlParameter[]
+                // التحقق من عدم وجود موظفين مرتبطين بالمسمى الوظيفي
+                string checkQuery = "SELECT COUNT(*) FROM Employees WHERE PositionID = @ID";
+                
+                SqlParameter[] checkParameters =
                 {
-                    new SqlParameter("@PositionID", positionId)
+                    new SqlParameter("@ID", id)
                 };
-                int employeeCount = Convert.ToInt32(ConnectionManager.ExecuteScalar(checkEmployeesQuery, checkParams));
 
-                if (employeeCount > 0)
-                {
-                    return false; // Can't delete position with employees
-                }
+                object result = ConnectionManager.ExecuteScalar(checkQuery, checkParameters);
+                int count = Convert.ToInt32(result);
 
-                // Check if position is used as a manager position for any department
-                string checkDepartmentsQuery = "SELECT COUNT(*) FROM Departments WHERE ManagerPositionID = @PositionID";
-                SqlParameter[] checkDeptParams = new SqlParameter[]
+                if (count > 0)
                 {
-                    new SqlParameter("@PositionID", positionId)
-                };
-                int deptCount = Convert.ToInt32(ConnectionManager.ExecuteScalar(checkDepartmentsQuery, checkDeptParams));
-
-                if (deptCount > 0)
-                {
-                    return false; // Can't delete position if it's used as a manager position
-                }
-
-                // Get position details for activity log
-                PositionDTO position = GetPositionById(positionId);
-                if (position == null)
-                {
+                    // لا يمكن حذف المسمى الوظيفي لوجود موظفين مرتبطين به
                     return false;
                 }
 
-                // Delete the position
-                string query = "DELETE FROM Positions WHERE ID = @PositionID";
-                SqlParameter[] parameters = new SqlParameter[]
+                // التحقق من عدم وجود إدارات تستخدم هذا المسمى الوظيفي كمدير
+                string checkManagerQuery = "SELECT COUNT(*) FROM Departments WHERE ManagerPositionID = @ID";
+                
+                object managerResult = ConnectionManager.ExecuteScalar(checkManagerQuery, checkParameters);
+                int managerCount = Convert.ToInt32(managerResult);
+
+                if (managerCount > 0)
                 {
-                    new SqlParameter("@PositionID", positionId)
+                    // لا يمكن حذف المسمى الوظيفي لاستخدامه كمسمى إداري
+                    return false;
+                }
+
+                string query = "DELETE FROM Positions WHERE ID = @ID";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@ID", id)
                 };
 
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                // Log activity
-                if (result > 0)
-                {
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    string oldValues = Newtonsoft.Json.JsonConvert.SerializeObject(position);
-                    activityRepo.LogActivity(userId, "Delete", "Positions", 
-                        $"Deleted position: {position.Title}", positionId, oldValues, null);
-
-                    return true;
-                }
-
-                return false;
+                int rowsAffected = ConnectionManager.ExecuteNonQuery(query, parameters);
+                return rowsAffected > 0;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return false;
+                LogManager.LogException(ex, $"فشل في حذف المسمى الوظيفي رقم {id}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets positions for a dropdown list
+        /// الحصول على عدد الموظفين في كل مسمى وظيفي
         /// </summary>
-        /// <param name="departmentId">Optional department ID filter</param>
-        /// <param name="includeInactive">Whether to include inactive positions</param>
-        /// <returns>DataTable with position ID and title</returns>
-        public DataTable GetPositionsForDropDown(int? departmentId = null, bool includeInactive = false)
+        /// <returns>قاموس بمعرفات المسميات الوظيفية وعدد الموظفين</returns>
+        public Dictionary<int, int> GetPositionEmployeeCounts()
         {
             try
             {
                 string query = @"
-                    SELECT p.ID, 
-                           CASE WHEN d.Name IS NOT NULL THEN d.Name + ' - ' + p.Title ELSE p.Title END AS Title
-                    FROM Positions p
-                    LEFT JOIN Departments d ON p.DepartmentID = d.ID
-                    WHERE 1=1";
+                    SELECT PositionID, COUNT(*) AS EmployeeCount
+                    FROM Employees
+                    WHERE PositionID IS NOT NULL
+                    GROUP BY PositionID";
 
-                if (departmentId.HasValue)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query))
                 {
-                    query += " AND p.DepartmentID = @DepartmentID";
-                }
+                    Dictionary<int, int> counts = new Dictionary<int, int>();
 
-                if (!includeInactive)
-                {
-                    query += " AND p.IsActive = 1";
-                }
-
-                query += " ORDER BY d.Name, p.Title";
-
-                SqlParameter[] parameters = new SqlParameter[] { };
-                if (departmentId.HasValue)
-                {
-                    parameters = new SqlParameter[]
+                    while (reader.Read())
                     {
-                        new SqlParameter("@DepartmentID", departmentId.Value)
-                    };
+                        int positionId = reader.GetInt32(0);
+                        int employeeCount = reader.GetInt32(1);
+                        counts[positionId] = employeeCount;
+                    }
+
+                    return counts;
                 }
-
-                return ConnectionManager.ExecuteQuery(query, parameters);
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return new DataTable();
-            }
-        }
-
-        /// <summary>
-        /// Gets manager positions for a dropdown list
-        /// </summary>
-        /// <param name="includeInactive">Whether to include inactive positions</param>
-        /// <returns>DataTable with manager position ID and title</returns>
-        public DataTable GetManagerPositionsForDropDown(bool includeInactive = false)
-        {
-            try
-            {
-                string query = @"
-                    SELECT p.ID, 
-                           CASE WHEN d.Name IS NOT NULL THEN d.Name + ' - ' + p.Title ELSE p.Title END AS Title
-                    FROM Positions p
-                    LEFT JOIN Departments d ON p.DepartmentID = d.ID
-                    WHERE p.IsManagerPosition = 1";
-
-                if (!includeInactive)
-                {
-                    query += " AND p.IsActive = 1";
-                }
-
-                query += " ORDER BY d.Name, p.Title";
-
-                return ConnectionManager.ExecuteQuery(query);
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return new DataTable();
-            }
-        }
-
-        /// <summary>
-        /// Gets positions count
-        /// </summary>
-        /// <returns>Number of positions</returns>
-        public int GetPositionsCount()
-        {
-            try
-            {
-                string query = "SELECT COUNT(*) FROM Positions";
-                return Convert.ToInt32(ConnectionManager.ExecuteScalar(query));
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return 0;
+                LogManager.LogException(ex, "فشل في الحصول على عدد الموظفين في المسميات الوظيفية");
+                throw;
             }
         }
     }

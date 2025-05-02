@@ -1,189 +1,279 @@
 using System;
-using System.Collections.Generic;
+using System.Security.Cryptography;
+using System.Text;
 using HR.Models;
 
 namespace HR.Core
 {
     /// <summary>
-    /// Manages user session information
+    /// مدير جلسات المستخدمين ومعلومات الجلسة الحالية
     /// </summary>
     public static class SessionManager
     {
         private static UserDTO _currentUser;
         private static CompanyDTO _companyInfo;
-        private static Dictionary<string, bool> _userPermissions;
-        private static bool _isInitialized;
+        private static string _sessionToken;
 
         /// <summary>
-        /// Initializes the session manager
+        /// تهيئة مدير الجلسات
         /// </summary>
         public static void Initialize()
         {
-            _isInitialized = true;
-            _userPermissions = new Dictionary<string, bool>();
             LogManager.LogInfo("Session manager initialized");
         }
 
         /// <summary>
-        /// Creates a new user session
+        /// تسجيل دخول المستخدم وإنشاء جلسة جديدة
         /// </summary>
-        /// <param name="user">User information</param>
-        /// <returns>True if login was successful</returns>
-        public static bool CreateSession(UserDTO user)
+        /// <param name="user">بيانات المستخدم المسجل</param>
+        /// <returns>رمز الجلسة</returns>
+        public static string Login(UserDTO user)
         {
-            if (!_isInitialized)
+            if (user == null)
             {
-                throw new InvalidOperationException("Session manager is not initialized");
+                throw new ArgumentNullException(nameof(user));
             }
 
             try
             {
                 _currentUser = user;
                 
-                // Load company information
-                DataAccess.CompanyRepository companyRepo = new DataAccess.CompanyRepository();
-                _companyInfo = companyRepo.GetCompanyInfo();
+                // إنشاء رمز جلسة عشوائي
+                _sessionToken = GenerateSessionToken(user.ID);
                 
-                // Load user permissions
-                LoadUserPermissions();
+                // تحميل معلومات الشركة
+                LoadCompanyInfo();
                 
-                // Log user login
-                LogManager.LogInfo($"User logged in: {user.Username} (ID: {user.ID})");
-                
-                // Update last login time
-                DataAccess.UserRepository userRepo = new DataAccess.UserRepository();
-                userRepo.UpdateLastLogin(user.ID);
-                
-                // Log activity
-                DataAccess.ActivityLogRepository activityRepo = new DataAccess.ActivityLogRepository();
-                activityRepo.LogActivity(user.ID, "Login", "Security", "User logged in", null, null, null);
-                
-                return true;
+                LogManager.LogInfo($"User {user.Username} logged in successfully");
+
+                return _sessionToken;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
+                LogManager.LogException(ex, $"Failed to login user {user.Username}");
                 _currentUser = null;
-                _companyInfo = null;
-                _userPermissions = new Dictionary<string, bool>();
-                return false;
+                _sessionToken = null;
+                throw;
             }
         }
 
         /// <summary>
-        /// Ends the current user session
+        /// تسجيل خروج المستخدم الحالي
         /// </summary>
-        public static void EndSession()
+        public static void Logout()
         {
-            if (_currentUser != null)
-            {
-                // Log activity
-                DataAccess.ActivityLogRepository activityRepo = new DataAccess.ActivityLogRepository();
-                activityRepo.LogActivity(_currentUser.ID, "Logout", "Security", "User logged out", null, null, null);
-                
-                // Log user logout
-                LogManager.LogInfo($"User logged out: {_currentUser.Username} (ID: {_currentUser.ID})");
-            }
-            
-            _currentUser = null;
-            _companyInfo = null;
-            _userPermissions = new Dictionary<string, bool>();
-        }
-
-        /// <summary>
-        /// Gets the current user information
-        /// </summary>
-        public static UserDTO CurrentUser
-        {
-            get { return _currentUser; }
-        }
-
-        /// <summary>
-        /// Gets the company information
-        /// </summary>
-        public static CompanyDTO CompanyInfo
-        {
-            get { return _companyInfo; }
-        }
-
-        /// <summary>
-        /// Checks if a user is logged in
-        /// </summary>
-        public static bool IsLoggedIn
-        {
-            get { return _currentUser != null; }
-        }
-
-        /// <summary>
-        /// Checks if the current user has a specific permission
-        /// </summary>
-        /// <param name="module">Module name</param>
-        /// <param name="action">Permission action (View, Add, Edit, Delete, etc.)</param>
-        /// <returns>True if the user has the permission</returns>
-        public static bool HasPermission(string module, string action)
-        {
-            if (!IsLoggedIn)
-            {
-                return false;
-            }
-
-            // Admin has all permissions
-            if (_currentUser.RoleID == 1)
-            {
-                return true;
-            }
-
-            string permissionKey = $"{module}_{action}";
-            return _userPermissions.ContainsKey(permissionKey) && _userPermissions[permissionKey];
-        }
-
-        /// <summary>
-        /// Loads user permissions into memory
-        /// </summary>
-        private static void LoadUserPermissions()
-        {
-            _userPermissions = new Dictionary<string, bool>();
-            
-            if (_currentUser == null || _currentUser.RoleID == null)
-            {
-                return;
-            }
-
             try
             {
-                DataAccess.RoleRepository roleRepo = new DataAccess.RoleRepository();
-                List<RolePermissionDTO> permissions = roleRepo.GetRolePermissions(_currentUser.RoleID);
-
-                foreach (var permission in permissions)
+                if (_currentUser != null)
                 {
-                    // Add view permission
-                    _userPermissions[$"{permission.ModuleName}_View"] = permission.CanView;
-                    
-                    // Add add permission
-                    _userPermissions[$"{permission.ModuleName}_Add"] = permission.CanAdd;
-                    
-                    // Add edit permission
-                    _userPermissions[$"{permission.ModuleName}_Edit"] = permission.CanEdit;
-                    
-                    // Add delete permission
-                    _userPermissions[$"{permission.ModuleName}_Delete"] = permission.CanDelete;
-                    
-                    // Add print permission
-                    _userPermissions[$"{permission.ModuleName}_Print"] = permission.CanPrint;
-                    
-                    // Add export permission
-                    _userPermissions[$"{permission.ModuleName}_Export"] = permission.CanExport;
-                    
-                    // Add import permission
-                    _userPermissions[$"{permission.ModuleName}_Import"] = permission.CanImport;
-                    
-                    // Add approve permission
-                    _userPermissions[$"{permission.ModuleName}_Approve"] = permission.CanApprove;
+                    string username = _currentUser.Username;
+                    _currentUser = null;
+                    _sessionToken = null;
+                    LogManager.LogInfo($"User {username} logged out");
                 }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, "Failed to load user permissions");
+                LogManager.LogException(ex, "Failed to logout user");
+            }
+        }
+
+        /// <summary>
+        /// تحميل معلومات الشركة
+        /// </summary>
+        private static void LoadCompanyInfo()
+        {
+            try
+            {
+                var companyRepository = new DataAccess.CompanyRepository();
+                _companyInfo = companyRepository.GetCompanyInfo();
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "Failed to load company information");
+                _companyInfo = null;
+            }
+        }
+
+        /// <summary>
+        /// التحقق مما إذا كان هناك مستخدم مسجل دخوله حاليًا
+        /// </summary>
+        /// <returns>نتيجة التحقق</returns>
+        public static bool IsUserLoggedIn()
+        {
+            return _currentUser != null && !string.IsNullOrEmpty(_sessionToken);
+        }
+
+        /// <summary>
+        /// التحقق مما إذا كان المستخدم الحالي مدير النظام
+        /// </summary>
+        /// <returns>نتيجة التحقق</returns>
+        public static bool IsCurrentUserAdmin()
+        {
+            return IsUserLoggedIn() && _currentUser.RoleName == "Administrator";
+        }
+
+        /// <summary>
+        /// الحصول على المستخدم الحالي
+        /// </summary>
+        /// <returns>بيانات المستخدم الحالي</returns>
+        public static UserDTO GetCurrentUser()
+        {
+            return _currentUser;
+        }
+
+        /// <summary>
+        /// الحصول على معلومات الشركة الحالية
+        /// </summary>
+        /// <returns>بيانات الشركة</returns>
+        public static CompanyDTO GetCompanyInfo()
+        {
+            return _companyInfo;
+        }
+
+        /// <summary>
+        /// تحديث معلومات الشركة
+        /// </summary>
+        public static void RefreshCompanyInfo()
+        {
+            LoadCompanyInfo();
+        }
+
+        /// <summary>
+        /// الحصول على رمز الجلسة الحالية
+        /// </summary>
+        /// <returns>رمز الجلسة</returns>
+        public static string GetSessionToken()
+        {
+            return _sessionToken;
+        }
+
+        /// <summary>
+        /// إنشاء رمز جلسة عشوائي
+        /// </summary>
+        /// <param name="userId">معرف المستخدم</param>
+        /// <returns>رمز الجلسة</returns>
+        private static string GenerateSessionToken(int userId)
+        {
+            using (var sha256 = SHA256.Create())
+            {
+                string timeStamp = DateTime.Now.ToString("yyyyMMddHHmmssffff");
+                string randomValue = Guid.NewGuid().ToString();
+                string tokenInput = $"{userId}_{timeStamp}_{randomValue}";
+                
+                byte[] inputBytes = Encoding.UTF8.GetBytes(tokenInput);
+                byte[] hashBytes = sha256.ComputeHash(inputBytes);
+                
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < hashBytes.Length; i++)
+                {
+                    sb.Append(hashBytes[i].ToString("x2"));
+                }
+                
+                return sb.ToString();
+            }
+        }
+
+        /// <summary>
+        /// التحقق من صلاحية المستخدم الحالي للوصول إلى وحدة معينة
+        /// </summary>
+        /// <param name="moduleName">اسم الوحدة</param>
+        /// <returns>نتيجة التحقق</returns>
+        public static bool HasAccessToModule(string moduleName)
+        {
+            if (!IsUserLoggedIn() || string.IsNullOrEmpty(moduleName))
+            {
+                return false;
+            }
+
+            // مدير النظام له حق الوصول إلى كافة الوحدات
+            if (IsCurrentUserAdmin())
+            {
+                return true;
+            }
+
+            // التحقق من الصلاحيات
+            try
+            {
+                var roleRepository = new DataAccess.RoleRepository();
+                var permissions = roleRepository.GetRolePermissions(_currentUser.RoleID.Value);
+
+                foreach (var permission in permissions)
+                {
+                    if (permission.ModuleName == moduleName && permission.CanView)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"Failed to check access to module {moduleName}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// التحقق من صلاحية المستخدم الحالي لإجراء عملية معينة على وحدة معينة
+        /// </summary>
+        /// <param name="moduleName">اسم الوحدة</param>
+        /// <param name="action">نوع العملية (Add, Edit, Delete, Export, إلخ)</param>
+        /// <returns>نتيجة التحقق</returns>
+        public static bool HasPermission(string moduleName, string action)
+        {
+            if (!IsUserLoggedIn() || string.IsNullOrEmpty(moduleName) || string.IsNullOrEmpty(action))
+            {
+                return false;
+            }
+
+            // مدير النظام له كافة الصلاحيات
+            if (IsCurrentUserAdmin())
+            {
+                return true;
+            }
+
+            // التحقق من الصلاحيات
+            try
+            {
+                var roleRepository = new DataAccess.RoleRepository();
+                var permissions = roleRepository.GetRolePermissions(_currentUser.RoleID.Value);
+
+                foreach (var permission in permissions)
+                {
+                    if (permission.ModuleName == moduleName)
+                    {
+                        switch (action.ToLower())
+                        {
+                            case "view":
+                                return permission.CanView;
+                            case "add":
+                                return permission.CanAdd;
+                            case "edit":
+                                return permission.CanEdit;
+                            case "delete":
+                                return permission.CanDelete;
+                            case "print":
+                                return permission.CanPrint;
+                            case "export":
+                                return permission.CanExport;
+                            case "import":
+                                return permission.CanImport;
+                            case "approve":
+                                return permission.CanApprove;
+                            default:
+                                return false;
+                        }
+                    }
+                }
+
+                return false;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"Failed to check permission for {action} on module {moduleName}");
+                return false;
             }
         }
     }

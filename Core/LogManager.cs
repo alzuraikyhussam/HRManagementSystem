@@ -1,213 +1,210 @@
 using System;
-using System.IO;
-using System.Configuration;
 using System.Diagnostics;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Threading;
 
 namespace HR.Core
 {
     /// <summary>
-    /// Manages application logging
+    /// مدير سجلات النظام
     /// </summary>
     public static class LogManager
     {
+        private static readonly object _lockObject = new object();
+        private static string _logFolderPath;
         private static string _logFilePath;
-        private static bool _enableDebugLogging;
-        private static object _lockObject = new object();
+        private static readonly int _maxLogFileSizeBytes = 5 * 1024 * 1024; // 5 ميجابايت كحد أقصى
 
         /// <summary>
-        /// Initializes the log manager
+        /// تهيئة مدير السجلات
         /// </summary>
-        static LogManager()
+        public static void Initialize()
         {
             try
             {
-                _logFilePath = ConfigurationManager.AppSettings["LogFilePath"] ?? "Logs";
-                _enableDebugLogging = Convert.ToBoolean(ConfigurationManager.AppSettings["EnableDebugLogging"] ?? "false");
-
-                // Make sure log directory exists
-                if (!Directory.Exists(_logFilePath))
+                string appPath = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+                _logFolderPath = Path.Combine(appPath, "Logs");
+                
+                // إنشاء مجلد السجلات إذا لم يكن موجودًا
+                if (!Directory.Exists(_logFolderPath))
                 {
-                    Directory.CreateDirectory(_logFilePath);
+                    Directory.CreateDirectory(_logFolderPath);
                 }
+
+                // اسم ملف السجل بناءً على التاريخ
+                string logFileName = $"Log_{DateTime.Now:yyyy-MM-dd}.log";
+                _logFilePath = Path.Combine(_logFolderPath, logFileName);
+
+                // تسجيل بدء النظام
+                LogInfo("System initialized");
             }
-            catch
+            catch (Exception ex)
             {
-                // Use default values if configuration failed
-                _logFilePath = "Logs";
-                _enableDebugLogging = false;
-
-                if (!Directory.Exists(_logFilePath))
-                {
-                    Directory.CreateDirectory(_logFilePath);
-                }
+                // لا يمكن استخدام LogException هنا لتجنب التكرار
+                Debug.WriteLine($"Failed to initialize LogManager: {ex}");
             }
         }
 
         /// <summary>
-        /// Logs an exception
+        /// تسجيل معلومة
         /// </summary>
-        /// <param name="ex">Exception to log</param>
-        /// <param name="additionalInfo">Additional information about the exception</param>
-        public static void LogException(Exception ex, string additionalInfo = null)
-        {
-            try
-            {
-                string logFileName = Path.Combine(_logFilePath, $"error_{DateTime.Now:yyyyMMdd}.log");
-                string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] EXCEPTION: {ex.Message}\r\n";
-
-                if (!string.IsNullOrEmpty(additionalInfo))
-                {
-                    logEntry += $"Additional Info: {additionalInfo}\r\n";
-                }
-
-                logEntry += $"Source: {ex.Source}\r\n";
-                logEntry += $"Stack Trace: {ex.StackTrace}\r\n";
-
-                if (ex.InnerException != null)
-                {
-                    logEntry += $"Inner Exception: {ex.InnerException.Message}\r\n";
-                    logEntry += $"Inner Stack Trace: {ex.InnerException.StackTrace}\r\n";
-                }
-
-                logEntry += new string('-', 80) + "\r\n";
-
-                lock (_lockObject)
-                {
-                    File.AppendAllText(logFileName, logEntry);
-                }
-
-                // Also log to console in debug mode
-                Debug.WriteLine(logEntry);
-                Console.WriteLine(logEntry);
-            }
-            catch
-            {
-                // If logging fails, we can't do much
-                Debug.WriteLine($"Failed to log exception: {ex.Message}");
-                Console.WriteLine($"Failed to log exception: {ex.Message}");
-            }
-        }
-
-        /// <summary>
-        /// Logs an information message
-        /// </summary>
-        /// <param name="message">Message to log</param>
+        /// <param name="message">نص المعلومة</param>
         public static void LogInfo(string message)
         {
-            try
-            {
-                string logFileName = Path.Combine(_logFilePath, $"info_{DateTime.Now:yyyyMMdd}.log");
-                string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] INFO: {message}\r\n";
-
-                lock (_lockObject)
-                {
-                    File.AppendAllText(logFileName, logEntry);
-                }
-
-                // Also log to console in debug mode
-                Debug.WriteLine(logEntry);
-                Console.WriteLine(logEntry);
-            }
-            catch
-            {
-                // If logging fails, we can't do much
-                Debug.WriteLine($"Failed to log info: {message}");
-                Console.WriteLine($"Failed to log info: {message}");
-            }
+            WriteToLog("INFO", message);
         }
 
         /// <summary>
-        /// Logs a debug message, only if debug logging is enabled
+        /// تسجيل تحذير
         /// </summary>
-        /// <param name="message">Message to log</param>
-        public static void LogDebug(string message)
-        {
-            if (!_enableDebugLogging)
-            {
-                return;
-            }
-
-            try
-            {
-                string logFileName = Path.Combine(_logFilePath, $"debug_{DateTime.Now:yyyyMMdd}.log");
-                string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] DEBUG: {message}\r\n";
-
-                lock (_lockObject)
-                {
-                    File.AppendAllText(logFileName, logEntry);
-                }
-
-                // Also log to console in debug mode
-                Debug.WriteLine(logEntry);
-                Console.WriteLine(logEntry);
-            }
-            catch
-            {
-                // If logging fails, we can't do much
-                Debug.WriteLine($"Failed to log debug: {message}");
-                Console.WriteLine($"Failed to log debug: {message}");
-            }
-        }
-
-        /// <summary>
-        /// Logs a warning message
-        /// </summary>
-        /// <param name="message">Message to log</param>
+        /// <param name="message">نص التحذير</param>
         public static void LogWarning(string message)
         {
+            WriteToLog("WARNING", message);
+        }
+
+        /// <summary>
+        /// تسجيل خطأ
+        /// </summary>
+        /// <param name="message">نص الخطأ</param>
+        public static void LogError(string message)
+        {
+            WriteToLog("ERROR", message);
+        }
+
+        /// <summary>
+        /// تسجيل استثناء
+        /// </summary>
+        /// <param name="ex">كائن الاستثناء</param>
+        /// <param name="context">سياق الاستثناء</param>
+        public static void LogException(Exception ex, string context = null)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            if (!string.IsNullOrEmpty(context))
+            {
+                sb.Append(context).Append(": ");
+            }
+
+            sb.Append(ex.Message);
+
+            // تضمين تفاصيل الاستثناء
+            sb.AppendLine().Append("Exception Type: ").Append(ex.GetType().FullName);
+            sb.AppendLine().Append("Stack Trace: ").Append(ex.StackTrace);
+
+            // تضمين الاستثناءات الداخلية
+            Exception innerEx = ex.InnerException;
+            while (innerEx != null)
+            {
+                sb.AppendLine().Append("Inner Exception: ").Append(innerEx.Message);
+                sb.AppendLine().Append("Inner Stack Trace: ").Append(innerEx.StackTrace);
+                innerEx = innerEx.InnerException;
+            }
+
+            WriteToLog("EXCEPTION", sb.ToString());
+        }
+
+        /// <summary>
+        /// تسجيل أثر
+        /// </summary>
+        /// <param name="message">نص الأثر</param>
+        public static void LogTrace(string message)
+        {
+            WriteToLog("TRACE", message);
+        }
+
+        /// <summary>
+        /// كتابة السجل إلى الملف
+        /// </summary>
+        /// <param name="level">مستوى السجل</param>
+        /// <param name="message">نص السجل</param>
+        private static void WriteToLog(string level, string message)
+        {
+            // التأكد من تهيئة مدير السجلات
+            if (string.IsNullOrEmpty(_logFilePath))
+            {
+                Initialize();
+            }
+
             try
             {
-                string logFileName = Path.Combine(_logFilePath, $"warning_{DateTime.Now:yyyyMMdd}.log");
-                string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] WARNING: {message}\r\n";
-
                 lock (_lockObject)
                 {
-                    File.AppendAllText(logFileName, logEntry);
-                }
+                    // التحقق من حجم ملف السجل
+                    CheckLogFileSize();
 
-                // Also log to console in debug mode
-                Debug.WriteLine(logEntry);
-                Console.WriteLine(logEntry);
+                    // إنشاء سطر السجل
+                    string logLine = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{level}] [{Thread.CurrentThread.ManagedThreadId}] {message}{Environment.NewLine}";
+
+                    // كتابة السجل
+                    File.AppendAllText(_logFilePath, logLine);
+
+                    // كتابة السجل إلى وحدة التصحيح
+                    Debug.WriteLine(logLine);
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                // If logging fails, we can't do much
-                Debug.WriteLine($"Failed to log warning: {message}");
-                Console.WriteLine($"Failed to log warning: {message}");
+                // تسجيل الخطأ إلى وحدة التصحيح
+                Debug.WriteLine($"Failed to write to log file: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Logs a database operation
+        /// التحقق من حجم ملف السجل
         /// </summary>
-        /// <param name="operation">Database operation description</param>
-        /// <param name="details">Operation details</param>
-        public static void LogDatabaseOperation(string operation, string details)
+        private static void CheckLogFileSize()
         {
             try
             {
-                string logFileName = Path.Combine(_logFilePath, $"database_{DateTime.Now:yyyyMMdd}.log");
-                string logEntry = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] DB OPERATION: {operation}\r\n";
-                logEntry += $"Details: {details}\r\n";
-                logEntry += new string('-', 80) + "\r\n";
-
-                lock (_lockObject)
+                if (File.Exists(_logFilePath))
                 {
-                    File.AppendAllText(logFileName, logEntry);
-                }
-
-                // Also log to console in debug mode
-                if (_enableDebugLogging)
-                {
-                    Debug.WriteLine(logEntry);
-                    Console.WriteLine(logEntry);
+                    FileInfo fileInfo = new FileInfo(_logFilePath);
+                    if (fileInfo.Length > _maxLogFileSizeBytes)
+                    {
+                        // إنشاء ملف سجل جديد بناءً على الوقت
+                        string newLogFileName = $"Log_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log";
+                        _logFilePath = Path.Combine(_logFolderPath, newLogFileName);
+                        LogInfo($"Log file size exceeded {_maxLogFileSizeBytes} bytes. Created new log file: {newLogFileName}");
+                    }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // If logging fails, we can't do much
-                Debug.WriteLine($"Failed to log database operation: {operation}");
-                Console.WriteLine($"Failed to log database operation: {operation}");
+                // تسجيل الخطأ إلى وحدة التصحيح
+                Debug.WriteLine($"Failed to check log file size: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// تنظيف ملفات السجلات القديمة
+        /// </summary>
+        /// <param name="daysToKeep">عدد الأيام للاحتفاظ بملفات السجلات</param>
+        public static void CleanupOldLogs(int daysToKeep = 30)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_logFolderPath) || !Directory.Exists(_logFolderPath))
+                {
+                    return;
+                }
+
+                DateTime cutoffDate = DateTime.Now.AddDays(-daysToKeep);
+                foreach (string logFile in Directory.GetFiles(_logFolderPath, "Log_*.log"))
+                {
+                    FileInfo fileInfo = new FileInfo(logFile);
+                    if (fileInfo.CreationTime < cutoffDate)
+                    {
+                        fileInfo.Delete();
+                        LogInfo($"Deleted old log file: {Path.GetFileName(logFile)}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogException(ex, "Failed to clean up old log files");
             }
         }
     }

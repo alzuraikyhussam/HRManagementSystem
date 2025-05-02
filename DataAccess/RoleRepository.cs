@@ -8,500 +8,637 @@ using HR.Models;
 namespace HR.DataAccess
 {
     /// <summary>
-    /// Repository for role and permission operations
+    /// مستودع بيانات الأدوار وصلاحياتها
     /// </summary>
     public class RoleRepository
     {
         /// <summary>
-        /// Gets all roles
+        /// الحصول على كافة الأدوار
         /// </summary>
-        /// <returns>List of RoleDTO objects</returns>
+        /// <returns>قائمة بالأدوار</returns>
         public List<RoleDTO> GetAllRoles()
         {
             try
             {
                 string query = @"
-                    SELECT ID, Name, Description, CreatedAt, UpdatedAt
-                    FROM Roles
-                    ORDER BY Name";
+                    SELECT r.ID, r.Name, r.Description,
+                          (SELECT COUNT(*) FROM Users WHERE RoleID = r.ID) AS UserCount
+                    FROM Roles r
+                    ORDER BY r.Name";
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query);
-                List<RoleDTO> roles = new List<RoleDTO>();
-
-                foreach (DataRow row in dataTable.Rows)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query))
                 {
-                    RoleDTO role = new RoleDTO
+                    List<RoleDTO> roles = new List<RoleDTO>();
+
+                    while (reader.Read())
                     {
-                        ID = Convert.ToInt32(row["ID"]),
-                        Name = row["Name"].ToString(),
-                        Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : null,
-                        CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                        UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null,
-                        Permissions = GetRolePermissions(Convert.ToInt32(row["ID"]))
-                    };
+                        RoleDTO role = new RoleDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Name = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            UserCount = reader.GetInt32(3),
+                            Permissions = new List<RolePermissionDTO>()
+                        };
 
-                    roles.Add(role);
+                        roles.Add(role);
+                    }
+
+                    return roles;
                 }
-
-                return roles;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return new List<RoleDTO>();
+                LogManager.LogException(ex, "فشل في الحصول على كافة الأدوار");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets a role by ID
+        /// الحصول على الدور بواسطة المعرف
         /// </summary>
-        /// <param name="roleId">Role ID</param>
-        /// <returns>RoleDTO object</returns>
-        public RoleDTO GetRoleById(int roleId)
+        /// <param name="id">معرف الدور</param>
+        /// <returns>بيانات الدور</returns>
+        public RoleDTO GetRoleById(int id)
         {
             try
             {
-                string query = @"
-                    SELECT ID, Name, Description, CreatedAt, UpdatedAt
-                    FROM Roles
-                    WHERE ID = @RoleID";
+                // الحصول على بيانات الدور
+                string roleQuery = @"
+                    SELECT r.ID, r.Name, r.Description,
+                          (SELECT COUNT(*) FROM Users WHERE RoleID = r.ID) AS UserCount
+                    FROM Roles r
+                    WHERE r.ID = @ID";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] roleParameters =
                 {
-                    new SqlParameter("@RoleID", roleId)
+                    new SqlParameter("@ID", id)
                 };
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query, parameters);
-
-                if (dataTable.Rows.Count == 0)
+                RoleDTO role = null;
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(roleQuery, roleParameters))
                 {
-                    return null;
+                    if (reader.Read())
+                    {
+                        role = new RoleDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Name = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Description = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            UserCount = reader.GetInt32(3),
+                            Permissions = new List<RolePermissionDTO>()
+                        };
+                    }
+                    else
+                    {
+                        return null;
+                    }
                 }
 
-                DataRow row = dataTable.Rows[0];
+                // الحصول على صلاحيات الدور
+                string permissionsQuery = @"
+                    SELECT ID, RoleID, ModuleName, CanView, CanAdd, CanEdit, CanDelete,
+                           CanPrint, CanExport, CanImport, CanApprove
+                    FROM RolePermissions
+                    WHERE RoleID = @RoleID";
 
-                RoleDTO role = new RoleDTO
+                SqlParameter[] permissionsParameters =
                 {
-                    ID = Convert.ToInt32(row["ID"]),
-                    Name = row["Name"].ToString(),
-                    Description = row["Description"] != DBNull.Value ? row["Description"].ToString() : null,
-                    CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                    UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null,
-                    Permissions = GetRolePermissions(roleId)
+                    new SqlParameter("@RoleID", id)
                 };
+
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(permissionsQuery, permissionsParameters))
+                {
+                    while (reader.Read())
+                    {
+                        RolePermissionDTO permission = new RolePermissionDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            RoleID = reader.GetInt32(1),
+                            ModuleName = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            CanView = reader.GetBoolean(3),
+                            CanAdd = reader.GetBoolean(4),
+                            CanEdit = reader.GetBoolean(5),
+                            CanDelete = reader.GetBoolean(6),
+                            CanPrint = reader.GetBoolean(7),
+                            CanExport = reader.GetBoolean(8),
+                            CanImport = reader.GetBoolean(9),
+                            CanApprove = reader.GetBoolean(10)
+                        };
+
+                        role.Permissions.Add(permission);
+                    }
+                }
 
                 return role;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return null;
+                LogManager.LogException(ex, $"فشل في الحصول على الدور رقم {id}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets permissions for a role
+        /// الحصول على صلاحيات الدور
         /// </summary>
-        /// <param name="roleId">Role ID</param>
-        /// <returns>List of RolePermissionDTO objects</returns>
-        public List<RolePermissionDTO> GetRolePermissions(int? roleId)
+        /// <param name="roleId">معرف الدور</param>
+        /// <returns>قائمة بصلاحيات الدور</returns>
+        public List<RolePermissionDTO> GetRolePermissions(int roleId)
         {
             try
             {
-                if (!roleId.HasValue)
-                {
-                    return new List<RolePermissionDTO>();
-                }
-
                 string query = @"
-                    SELECT ID, RoleID, ModuleName, CanView, CanAdd, CanEdit, 
-                           CanDelete, CanPrint, CanExport, CanImport, CanApprove
+                    SELECT ID, RoleID, ModuleName, CanView, CanAdd, CanEdit, CanDelete,
+                           CanPrint, CanExport, CanImport, CanApprove
                     FROM RolePermissions
                     WHERE RoleID = @RoleID";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
-                    new SqlParameter("@RoleID", roleId.Value)
+                    new SqlParameter("@RoleID", roleId)
                 };
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query, parameters);
-                List<RolePermissionDTO> permissions = new List<RolePermissionDTO>();
-
-                foreach (DataRow row in dataTable.Rows)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query, parameters))
                 {
-                    RolePermissionDTO permission = new RolePermissionDTO
+                    List<RolePermissionDTO> permissions = new List<RolePermissionDTO>();
+
+                    while (reader.Read())
                     {
-                        ID = Convert.ToInt32(row["ID"]),
-                        RoleID = Convert.ToInt32(row["RoleID"]),
-                        ModuleName = row["ModuleName"].ToString(),
-                        CanView = Convert.ToBoolean(row["CanView"]),
-                        CanAdd = Convert.ToBoolean(row["CanAdd"]),
-                        CanEdit = Convert.ToBoolean(row["CanEdit"]),
-                        CanDelete = Convert.ToBoolean(row["CanDelete"]),
-                        CanPrint = Convert.ToBoolean(row["CanPrint"]),
-                        CanExport = Convert.ToBoolean(row["CanExport"]),
-                        CanImport = Convert.ToBoolean(row["CanImport"]),
-                        CanApprove = Convert.ToBoolean(row["CanApprove"])
-                    };
+                        RolePermissionDTO permission = new RolePermissionDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            RoleID = reader.GetInt32(1),
+                            ModuleName = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            CanView = reader.GetBoolean(3),
+                            CanAdd = reader.GetBoolean(4),
+                            CanEdit = reader.GetBoolean(5),
+                            CanDelete = reader.GetBoolean(6),
+                            CanPrint = reader.GetBoolean(7),
+                            CanExport = reader.GetBoolean(8),
+                            CanImport = reader.GetBoolean(9),
+                            CanApprove = reader.GetBoolean(10)
+                        };
 
-                    permissions.Add(permission);
+                        permissions.Add(permission);
+                    }
+
+                    return permissions;
                 }
-
-                return permissions;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return new List<RolePermissionDTO>();
+                LogManager.LogException(ex, $"فشل في الحصول على صلاحيات الدور رقم {roleId}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Saves a role (inserts if ID is 0, updates otherwise)
+        /// إنشاء دور جديد
         /// </summary>
-        /// <param name="role">RoleDTO object</param>
-        /// <param name="userId">User ID performing the operation</param>
-        /// <returns>ID of the saved role</returns>
-        public int SaveRole(RoleDTO role, int userId)
+        /// <param name="role">بيانات الدور</param>
+        /// <returns>معرف الدور الجديد</returns>
+        public int CreateRole(RoleDTO role)
         {
+            if (role == null)
+            {
+                throw new ArgumentNullException(nameof(role));
+            }
+
             try
             {
-                string query;
-                SqlParameter[] parameters;
-
-                if (role.ID == 0)
+                using (SqlConnection connection = ConnectionManager.CreateConnection())
                 {
-                    // Insert new role
-                    query = @"
-                        INSERT INTO Roles (Name, Description, CreatedAt)
-                        VALUES (@Name, @Description, @CreatedAt);
-                        SELECT SCOPE_IDENTITY();";
-
-                    parameters = new SqlParameter[]
+                    connection.Open();
+                    using (SqlTransaction transaction = connection.BeginTransaction())
                     {
-                        new SqlParameter("@Name", role.Name),
-                        new SqlParameter("@Description", (object)role.Description ?? DBNull.Value),
-                        new SqlParameter("@CreatedAt", DateTime.Now)
-                    };
-
-                    object result = ConnectionManager.ExecuteScalar(query, parameters);
-                    role.ID = Convert.ToInt32(result);
-
-                    // Log activity
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    activityRepo.LogActivity(userId, "Add", "Roles", 
-                        $"Added new role: {role.Name}", role.ID, null, null);
-
-                    // Create default permissions for the role
-                    if (role.Permissions != null && role.Permissions.Count > 0)
-                    {
-                        foreach (var permission in role.Permissions)
+                        try
                         {
-                            permission.RoleID = role.ID;
-                            SaveRolePermission(permission);
+                            // إنشاء الدور
+                            string roleQuery = @"
+                                INSERT INTO Roles (Name, Description, CreatedAt)
+                                VALUES (@Name, @Description, GETDATE());
+                                SELECT SCOPE_IDENTITY();";
+
+                            SqlCommand roleCommand = new SqlCommand(roleQuery, connection, transaction);
+                            roleCommand.Parameters.AddWithValue("@Name", (object)role.Name ?? DBNull.Value);
+                            roleCommand.Parameters.AddWithValue("@Description", (object)role.Description ?? DBNull.Value);
+
+                            int roleId = Convert.ToInt32(roleCommand.ExecuteScalar());
+
+                            // إنشاء صلاحيات الدور
+                            if (role.Permissions != null && role.Permissions.Count > 0)
+                            {
+                                foreach (var permission in role.Permissions)
+                                {
+                                    string permissionQuery = @"
+                                        INSERT INTO RolePermissions (
+                                            RoleID, ModuleName, CanView, CanAdd, CanEdit, CanDelete,
+                                            CanPrint, CanExport, CanImport, CanApprove
+                                        )
+                                        VALUES (
+                                            @RoleID, @ModuleName, @CanView, @CanAdd, @CanEdit, @CanDelete,
+                                            @CanPrint, @CanExport, @CanImport, @CanApprove
+                                        )";
+
+                                    SqlCommand permissionCommand = new SqlCommand(permissionQuery, connection, transaction);
+                                    permissionCommand.Parameters.AddWithValue("@RoleID", roleId);
+                                    permissionCommand.Parameters.AddWithValue("@ModuleName", (object)permission.ModuleName ?? DBNull.Value);
+                                    permissionCommand.Parameters.AddWithValue("@CanView", permission.CanView);
+                                    permissionCommand.Parameters.AddWithValue("@CanAdd", permission.CanAdd);
+                                    permissionCommand.Parameters.AddWithValue("@CanEdit", permission.CanEdit);
+                                    permissionCommand.Parameters.AddWithValue("@CanDelete", permission.CanDelete);
+                                    permissionCommand.Parameters.AddWithValue("@CanPrint", permission.CanPrint);
+                                    permissionCommand.Parameters.AddWithValue("@CanExport", permission.CanExport);
+                                    permissionCommand.Parameters.AddWithValue("@CanImport", permission.CanImport);
+                                    permissionCommand.Parameters.AddWithValue("@CanApprove", permission.CanApprove);
+
+                                    permissionCommand.ExecuteNonQuery();
+                                }
+                            }
+
+                            transaction.Commit();
+                            return roleId;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
                         }
                     }
-                    else
-                    {
-                        // Create default empty permissions for all modules
-                        PermissionManager.CreateDefaultPermissions(role.ID, false);
-                    }
-
-                    return role.ID;
                 }
-                else
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في إنشاء دور جديد");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// تحديث دور
+        /// </summary>
+        /// <param name="role">بيانات الدور</param>
+        /// <returns>نجاح العملية</returns>
+        public bool UpdateRole(RoleDTO role)
+        {
+            if (role == null)
+            {
+                throw new ArgumentNullException(nameof(role));
+            }
+
+            try
+            {
+                using (SqlConnection connection = ConnectionManager.CreateConnection())
                 {
-                    // Get existing role for activity log
-                    RoleDTO existingRole = GetRoleById(role.ID);
-                    string oldValues = Newtonsoft.Json.JsonConvert.SerializeObject(existingRole);
-
-                    // Update existing role
-                    query = @"
-                        UPDATE Roles
-                        SET Name = @Name,
-                            Description = @Description,
-                            UpdatedAt = @UpdatedAt
-                        WHERE ID = @ID";
-
-                    parameters = new SqlParameter[]
+                    connection.Open();
+                    using (SqlTransaction transaction = connection.BeginTransaction())
                     {
-                        new SqlParameter("@ID", role.ID),
-                        new SqlParameter("@Name", role.Name),
-                        new SqlParameter("@Description", (object)role.Description ?? DBNull.Value),
-                        new SqlParameter("@UpdatedAt", DateTime.Now)
-                    };
-
-                    int updateResult = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                    // Update permissions if provided
-                    if (role.Permissions != null && role.Permissions.Count > 0)
-                    {
-                        foreach (var permission in role.Permissions)
+                        try
                         {
-                            permission.RoleID = role.ID;
-                            SaveRolePermission(permission);
+                            // تحديث الدور
+                            string roleQuery = @"
+                                UPDATE Roles
+                                SET Name = @Name,
+                                    Description = @Description,
+                                    UpdatedAt = GETDATE()
+                                WHERE ID = @ID";
+
+                            SqlCommand roleCommand = new SqlCommand(roleQuery, connection, transaction);
+                            roleCommand.Parameters.AddWithValue("@ID", role.ID);
+                            roleCommand.Parameters.AddWithValue("@Name", (object)role.Name ?? DBNull.Value);
+                            roleCommand.Parameters.AddWithValue("@Description", (object)role.Description ?? DBNull.Value);
+
+                            int rowsAffected = roleCommand.ExecuteNonQuery();
+                            if (rowsAffected == 0)
+                            {
+                                // الدور غير موجود
+                                transaction.Rollback();
+                                return false;
+                            }
+
+                            // تحديث صلاحيات الدور
+
+                            // حذف الصلاحيات الحالية
+                            string deletePermissionsQuery = "DELETE FROM RolePermissions WHERE RoleID = @RoleID";
+                            SqlCommand deletePermissionsCommand = new SqlCommand(deletePermissionsQuery, connection, transaction);
+                            deletePermissionsCommand.Parameters.AddWithValue("@RoleID", role.ID);
+                            deletePermissionsCommand.ExecuteNonQuery();
+
+                            // إضافة الصلاحيات الجديدة
+                            if (role.Permissions != null && role.Permissions.Count > 0)
+                            {
+                                foreach (var permission in role.Permissions)
+                                {
+                                    string permissionQuery = @"
+                                        INSERT INTO RolePermissions (
+                                            RoleID, ModuleName, CanView, CanAdd, CanEdit, CanDelete,
+                                            CanPrint, CanExport, CanImport, CanApprove
+                                        )
+                                        VALUES (
+                                            @RoleID, @ModuleName, @CanView, @CanAdd, @CanEdit, @CanDelete,
+                                            @CanPrint, @CanExport, @CanImport, @CanApprove
+                                        )";
+
+                                    SqlCommand permissionCommand = new SqlCommand(permissionQuery, connection, transaction);
+                                    permissionCommand.Parameters.AddWithValue("@RoleID", role.ID);
+                                    permissionCommand.Parameters.AddWithValue("@ModuleName", (object)permission.ModuleName ?? DBNull.Value);
+                                    permissionCommand.Parameters.AddWithValue("@CanView", permission.CanView);
+                                    permissionCommand.Parameters.AddWithValue("@CanAdd", permission.CanAdd);
+                                    permissionCommand.Parameters.AddWithValue("@CanEdit", permission.CanEdit);
+                                    permissionCommand.Parameters.AddWithValue("@CanDelete", permission.CanDelete);
+                                    permissionCommand.Parameters.AddWithValue("@CanPrint", permission.CanPrint);
+                                    permissionCommand.Parameters.AddWithValue("@CanExport", permission.CanExport);
+                                    permissionCommand.Parameters.AddWithValue("@CanImport", permission.CanImport);
+                                    permissionCommand.Parameters.AddWithValue("@CanApprove", permission.CanApprove);
+
+                                    permissionCommand.ExecuteNonQuery();
+                                }
+                            }
+
+                            transaction.Commit();
+                            return true;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
                         }
                     }
-
-                    // Log activity
-                    if (updateResult > 0)
-                    {
-                        ActivityLogRepository activityRepo = new ActivityLogRepository();
-                        string newValues = Newtonsoft.Json.JsonConvert.SerializeObject(role);
-                        activityRepo.LogActivity(userId, "Edit", "Roles", 
-                            $"Updated role: {role.Name}", role.ID, oldValues, newValues);
-                    }
-
-                    return role.ID;
                 }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return 0;
+                LogManager.LogException(ex, $"فشل في تحديث الدور رقم {role.ID}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Saves a role permission
+        /// حذف دور
         /// </summary>
-        /// <param name="permission">RolePermissionDTO object</param>
-        /// <returns>ID of the saved permission</returns>
-        public int SaveRolePermission(RolePermissionDTO permission)
+        /// <param name="id">معرف الدور</param>
+        /// <returns>نجاح العملية</returns>
+        public bool DeleteRole(int id)
         {
             try
             {
-                // Check if permission exists
-                string checkQuery = @"
-                    SELECT ID FROM RolePermissions 
-                    WHERE RoleID = @RoleID AND ModuleName = @ModuleName";
-
-                SqlParameter[] checkParams = new SqlParameter[]
+                // التحقق من عدم وجود مستخدمين مرتبطين بالدور
+                string checkQuery = "SELECT COUNT(*) FROM Users WHERE RoleID = @ID";
+                
+                SqlParameter[] checkParameters =
                 {
-                    new SqlParameter("@RoleID", permission.RoleID),
-                    new SqlParameter("@ModuleName", permission.ModuleName)
+                    new SqlParameter("@ID", id)
                 };
 
-                object existingId = ConnectionManager.ExecuteScalar(checkQuery, checkParams);
-
-                if (existingId != null && Convert.ToInt32(existingId) > 0)
-                {
-                    // Update existing permission
-                    string query = @"
-                        UPDATE RolePermissions
-                        SET CanView = @CanView,
-                            CanAdd = @CanAdd,
-                            CanEdit = @CanEdit,
-                            CanDelete = @CanDelete,
-                            CanPrint = @CanPrint,
-                            CanExport = @CanExport,
-                            CanImport = @CanImport,
-                            CanApprove = @CanApprove
-                        WHERE ID = @ID";
-
-                    SqlParameter[] parameters = new SqlParameter[]
-                    {
-                        new SqlParameter("@ID", Convert.ToInt32(existingId)),
-                        new SqlParameter("@CanView", permission.CanView),
-                        new SqlParameter("@CanAdd", permission.CanAdd),
-                        new SqlParameter("@CanEdit", permission.CanEdit),
-                        new SqlParameter("@CanDelete", permission.CanDelete),
-                        new SqlParameter("@CanPrint", permission.CanPrint),
-                        new SqlParameter("@CanExport", permission.CanExport),
-                        new SqlParameter("@CanImport", permission.CanImport),
-                        new SqlParameter("@CanApprove", permission.CanApprove)
-                    };
-
-                    ConnectionManager.ExecuteNonQuery(query, parameters);
-                    return Convert.ToInt32(existingId);
-                }
-                else
-                {
-                    // Insert new permission
-                    string query = @"
-                        INSERT INTO RolePermissions (
-                            RoleID, ModuleName, CanView, CanAdd, CanEdit, 
-                            CanDelete, CanPrint, CanExport, CanImport, CanApprove)
-                        VALUES (
-                            @RoleID, @ModuleName, @CanView, @CanAdd, @CanEdit, 
-                            @CanDelete, @CanPrint, @CanExport, @CanImport, @CanApprove);
-                        SELECT SCOPE_IDENTITY();";
-
-                    SqlParameter[] parameters = new SqlParameter[]
-                    {
-                        new SqlParameter("@RoleID", permission.RoleID),
-                        new SqlParameter("@ModuleName", permission.ModuleName),
-                        new SqlParameter("@CanView", permission.CanView),
-                        new SqlParameter("@CanAdd", permission.CanAdd),
-                        new SqlParameter("@CanEdit", permission.CanEdit),
-                        new SqlParameter("@CanDelete", permission.CanDelete),
-                        new SqlParameter("@CanPrint", permission.CanPrint),
-                        new SqlParameter("@CanExport", permission.CanExport),
-                        new SqlParameter("@CanImport", permission.CanImport),
-                        new SqlParameter("@CanApprove", permission.CanApprove)
-                    };
-
-                    object result = ConnectionManager.ExecuteScalar(query, parameters);
-                    return Convert.ToInt32(result);
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return 0;
-            }
-        }
-
-        /// <summary>
-        /// Deletes a role
-        /// </summary>
-        /// <param name="roleId">Role ID to delete</param>
-        /// <param name="userId">User ID performing the operation</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool DeleteRole(int roleId, int userId)
-        {
-            try
-            {
-                // Check if role is assigned to any users
-                string checkQuery = "SELECT COUNT(*) FROM Users WHERE RoleID = @RoleID";
-                SqlParameter[] checkParams = new SqlParameter[]
-                {
-                    new SqlParameter("@RoleID", roleId)
-                };
-                int userCount = Convert.ToInt32(ConnectionManager.ExecuteScalar(checkQuery, checkParams));
-
-                if (userCount > 0)
-                {
-                    return false; // Can't delete role that's assigned to users
-                }
-
-                // Get role details for activity log
-                RoleDTO role = GetRoleById(roleId);
-                if (role == null)
-                {
-                    return false;
-                }
-
-                string oldValues = Newtonsoft.Json.JsonConvert.SerializeObject(role);
-
-                // Delete role permissions first
-                string deletePermissions = "DELETE FROM RolePermissions WHERE RoleID = @RoleID";
-                SqlParameter[] permissionParams = new SqlParameter[]
-                {
-                    new SqlParameter("@RoleID", roleId)
-                };
-                ConnectionManager.ExecuteNonQuery(deletePermissions, permissionParams);
-
-                // Delete the role
-                string query = "DELETE FROM Roles WHERE ID = @RoleID";
-                SqlParameter[] parameters = new SqlParameter[]
-                {
-                    new SqlParameter("@RoleID", roleId)
-                };
-
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                // Log activity
-                if (result > 0)
-                {
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    activityRepo.LogActivity(userId, "Delete", "Roles", 
-                        $"Deleted role: {role.Name}", roleId, oldValues, null);
-
-                    return true;
-                }
-
-                return false;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Gets roles for a dropdown list
-        /// </summary>
-        /// <returns>DataTable with role ID and name</returns>
-        public DataTable GetRolesForDropDown()
-        {
-            try
-            {
-                string query = @"
-                    SELECT ID, Name
-                    FROM Roles
-                    ORDER BY Name";
-
-                return ConnectionManager.ExecuteQuery(query);
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return new DataTable();
-            }
-        }
-
-        /// <summary>
-        /// Creates an administrator role with full permissions
-        /// </summary>
-        /// <returns>ID of the created role</returns>
-        public int CreateAdminRole()
-        {
-            try
-            {
-                // Check if admin role already exists
-                string checkQuery = "SELECT COUNT(*) FROM Roles WHERE Name = N'مدير النظام'";
-                int count = Convert.ToInt32(ConnectionManager.ExecuteScalar(checkQuery));
+                object result = ConnectionManager.ExecuteScalar(checkQuery, checkParameters);
+                int count = Convert.ToInt32(result);
 
                 if (count > 0)
                 {
-                    string getIdQuery = "SELECT ID FROM Roles WHERE Name = N'مدير النظام'";
-                    return Convert.ToInt32(ConnectionManager.ExecuteScalar(getIdQuery));
+                    // لا يمكن حذف الدور لوجود مستخدمين مرتبطين به
+                    return false;
                 }
 
-                // Create admin role
-                string query = @"
-                    INSERT INTO Roles (Name, Description, CreatedAt)
-                    VALUES (N'مدير النظام', N'لديه كافة الصلاحيات في النظام', @CreatedAt);
-                    SELECT SCOPE_IDENTITY();";
-
-                SqlParameter[] parameters = new SqlParameter[]
+                using (SqlConnection connection = ConnectionManager.CreateConnection())
                 {
-                    new SqlParameter("@CreatedAt", DateTime.Now)
-                };
+                    connection.Open();
+                    using (SqlTransaction transaction = connection.BeginTransaction())
+                    {
+                        try
+                        {
+                            // حذف صلاحيات الدور
+                            string deletePermissionsQuery = "DELETE FROM RolePermissions WHERE RoleID = @ID";
+                            SqlCommand deletePermissionsCommand = new SqlCommand(deletePermissionsQuery, connection, transaction);
+                            deletePermissionsCommand.Parameters.AddWithValue("@ID", id);
+                            deletePermissionsCommand.ExecuteNonQuery();
 
-                object result = ConnectionManager.ExecuteScalar(query, parameters);
-                int roleId = Convert.ToInt32(result);
+                            // حذف الدور
+                            string deleteRoleQuery = "DELETE FROM Roles WHERE ID = @ID";
+                            SqlCommand deleteRoleCommand = new SqlCommand(deleteRoleQuery, connection, transaction);
+                            deleteRoleCommand.Parameters.AddWithValue("@ID", id);
+                            int rowsAffected = deleteRoleCommand.ExecuteNonQuery();
 
-                // Create permissions with full access for all modules
-                PermissionManager.CreateDefaultPermissions(roleId, true);
-
-                return roleId;
+                            transaction.Commit();
+                            return rowsAffected > 0;
+                        }
+                        catch
+                        {
+                            transaction.Rollback();
+                            throw;
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return 0;
+                LogManager.LogException(ex, $"فشل في حذف الدور رقم {id}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets the count of roles
+        /// الحصول على قائمة الوحدات (الصفحات) في النظام
         /// </summary>
-        /// <returns>Number of roles</returns>
-        public int GetRolesCount()
+        /// <returns>قائمة الوحدات</returns>
+        public List<ModuleDTO> GetSystemModules()
         {
-            try
+            // قائمة ثابتة بالوحدات في النظام
+            List<ModuleDTO> modules = new List<ModuleDTO>
             {
-                string query = "SELECT COUNT(*) FROM Roles";
-                return Convert.ToInt32(ConnectionManager.ExecuteScalar(query));
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return 0;
-            }
+                new ModuleDTO
+                {
+                    Name = "Dashboard",
+                    DisplayName = "لوحة التحكم",
+                    Description = "الصفحة الرئيسية والإحصائيات",
+                    Group = "عام",
+                    Order = 1,
+                    Icon = "Home",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "CompanySettings",
+                    DisplayName = "بيانات الشركة",
+                    Description = "إعدادات بيانات الشركة",
+                    Group = "الإعدادات",
+                    Order = 2,
+                    Icon = "Building",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Departments",
+                    DisplayName = "الإدارات والأقسام",
+                    Description = "إدارة الإدارات والأقسام",
+                    Group = "الهيكل التنظيمي",
+                    Order = 3,
+                    Icon = "OrgChart",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Positions",
+                    DisplayName = "المسميات الوظيفية",
+                    Description = "إدارة المسميات الوظيفية",
+                    Group = "الهيكل التنظيمي",
+                    Order = 4,
+                    Icon = "Badge",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Employees",
+                    DisplayName = "الموظفين",
+                    Description = "إدارة بيانات الموظفين",
+                    Group = "شؤون الموظفين",
+                    Order = 5,
+                    Icon = "People",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "EmployeeDocuments",
+                    DisplayName = "وثائق الموظفين",
+                    Description = "إدارة وثائق ومستندات الموظفين",
+                    Group = "شؤون الموظفين",
+                    Order = 6,
+                    Icon = "Document",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Attendance",
+                    DisplayName = "الحضور والانصراف",
+                    Description = "إدارة سجلات الحضور والانصراف",
+                    Group = "الدوام",
+                    Order = 7,
+                    Icon = "Clock",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "AttendanceReports",
+                    DisplayName = "تقارير الحضور",
+                    Description = "تقارير الحضور والانصراف",
+                    Group = "الدوام",
+                    Order = 8,
+                    Icon = "Report",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Leaves",
+                    DisplayName = "الإجازات",
+                    Description = "إدارة طلبات وأرصدة الإجازات",
+                    Group = "الإجازات",
+                    Order = 9,
+                    Icon = "Calendar",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "LeaveReports",
+                    DisplayName = "تقارير الإجازات",
+                    Description = "تقارير الإجازات",
+                    Group = "الإجازات",
+                    Order = 10,
+                    Icon = "Report",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "SalarySettings",
+                    DisplayName = "إعدادات الرواتب",
+                    Description = "إعدادات وعناصر الرواتب",
+                    Group = "الرواتب",
+                    Order = 11,
+                    Icon = "Money",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "EmployeeSalaries",
+                    DisplayName = "رواتب الموظفين",
+                    Description = "إدارة رواتب الموظفين",
+                    Group = "الرواتب",
+                    Order = 12,
+                    Icon = "Salary",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Payroll",
+                    DisplayName = "كشوف الرواتب",
+                    Description = "إدارة كشوف الرواتب الشهرية",
+                    Group = "الرواتب",
+                    Order = 13,
+                    Icon = "List",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Deductions",
+                    DisplayName = "الخصومات والجزاءات",
+                    Description = "إدارة الخصومات والجزاءات",
+                    Group = "الرواتب",
+                    Order = 14,
+                    Icon = "Minus",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "BiometricDevices",
+                    DisplayName = "أجهزة البصمة",
+                    Description = "إدارة أجهزة البصمة",
+                    Group = "النظام",
+                    Order = 15,
+                    Icon = "Fingerprint",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Users",
+                    DisplayName = "المستخدمين",
+                    Description = "إدارة حسابات المستخدمين",
+                    Group = "النظام",
+                    Order = 16,
+                    Icon = "User",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "Roles",
+                    DisplayName = "الصلاحيات",
+                    Description = "إدارة الأدوار والصلاحيات",
+                    Group = "النظام",
+                    Order = 17,
+                    Icon = "Lock",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "SystemSettings",
+                    DisplayName = "إعدادات النظام",
+                    Description = "إعدادات النظام العامة",
+                    Group = "النظام",
+                    Order = 18,
+                    Icon = "Settings",
+                    IsActive = true
+                },
+                new ModuleDTO
+                {
+                    Name = "ActivityLog",
+                    DisplayName = "سجل النشاطات",
+                    Description = "عرض سجل نشاطات المستخدمين",
+                    Group = "النظام",
+                    Order = 19,
+                    Icon = "History",
+                    IsActive = true
+                }
+            };
+
+            return modules;
         }
     }
 }

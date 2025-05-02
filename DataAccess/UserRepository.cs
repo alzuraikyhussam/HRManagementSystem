@@ -2,40 +2,139 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.Security.Cryptography;
+using System.Text;
 using HR.Core;
 using HR.Models;
 
 namespace HR.DataAccess
 {
     /// <summary>
-    /// Repository for user operations
+    /// مستودع بيانات المستخدمين وعمليات المصادقة
     /// </summary>
     public class UserRepository
     {
+        // ثابت ملح التشفير للنظام
+        private const string SYSTEM_SALT = "HR_SYSTEM_SALT_2022";
+
         /// <summary>
-        /// Gets all users
+        /// التحقق من صحة بيانات تسجيل الدخول
         /// </summary>
-        /// <param name="includeInactive">Whether to include inactive users</param>
-        /// <returns>List of UserDTO objects</returns>
+        /// <param name="username">اسم المستخدم</param>
+        /// <param name="password">كلمة المرور</param>
+        /// <returns>بيانات المستخدم إذا كانت المصادقة ناجحة، وإلا قيمة فارغة</returns>
+        public UserDTO ValidateLogin(string username, string password)
+        {
+            try
+            {
+                string query = @"
+                    SELECT u.ID, u.Username, u.PasswordHash, u.PasswordSalt, u.Email, u.FullName,
+                           u.RoleID, r.Name AS RoleName, u.EmployeeID, 
+                           CASE WHEN e.ID IS NOT NULL THEN e.FullName ELSE NULL END AS EmployeeFullName,
+                           u.IsActive, u.MustChangePassword, u.LastLogin, u.LastPasswordChange,
+                           u.FailedLoginAttempts, u.IsLocked, u.LockoutEnd
+                    FROM Users u
+                    LEFT JOIN Roles r ON u.RoleID = r.ID
+                    LEFT JOIN Employees e ON u.EmployeeID = e.ID
+                    WHERE u.Username = @Username";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@Username", username)
+                };
+
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query, parameters))
+                {
+                    if (!reader.Read())
+                    {
+                        // المستخدم غير موجود
+                        return null;
+                    }
+
+                    int id = reader.GetInt32(0);
+                    string storedPasswordHash = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    string storedPasswordSalt = reader.IsDBNull(3) ? null : reader.GetString(3);
+                    bool isActive = reader.GetBoolean(10);
+                    bool isLocked = reader.GetBoolean(15);
+                    DateTime? lockoutEnd = reader.IsDBNull(16) ? (DateTime?)null : reader.GetDateTime(16);
+
+                    // التحقق من حالة الحساب
+                    if (!isActive)
+                    {
+                        // الحساب غير نشط
+                        return null;
+                    }
+
+                    if (isLocked && lockoutEnd.HasValue && lockoutEnd.Value > DateTime.Now)
+                    {
+                        // الحساب مقفل
+                        return null;
+                    }
+
+                    // التحقق من كلمة المرور
+                    string saltedPassword = password + (storedPasswordSalt ?? SYSTEM_SALT);
+                    string passwordHash = ComputeSHA256Hash(saltedPassword);
+
+                    if (passwordHash != storedPasswordHash)
+                    {
+                        // زيادة عدد محاولات الدخول الفاشلة
+                        IncrementFailedLoginAttempts(id);
+                        return null;
+                    }
+
+                    // إنشاء كائن المستخدم
+                    UserDTO user = new UserDTO
+                    {
+                        ID = id,
+                        Username = reader.IsDBNull(1) ? null : reader.GetString(1),
+                        Email = reader.IsDBNull(4) ? null : reader.GetString(4),
+                        FullName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                        RoleID = reader.IsDBNull(6) ? (int?)null : reader.GetInt32(6),
+                        RoleName = reader.IsDBNull(7) ? null : reader.GetString(7),
+                        EmployeeID = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8),
+                        EmployeeFullName = reader.IsDBNull(9) ? null : reader.GetString(9),
+                        IsActive = isActive,
+                        MustChangePassword = reader.GetBoolean(11),
+                        LastLogin = reader.IsDBNull(12) ? (DateTime?)null : reader.GetDateTime(12),
+                        LastPasswordChange = reader.IsDBNull(13) ? (DateTime?)null : reader.GetDateTime(13),
+                        FailedLoginAttempts = reader.IsDBNull(14) ? 0 : reader.GetInt32(14),
+                        IsLocked = isLocked,
+                        LockoutEnd = lockoutEnd
+                    };
+
+                    // تحديث بيانات آخر تسجيل دخول
+                    UpdateLastLogin(id);
+
+                    // تسجيل عملية الدخول
+                    LogLogin(id, true);
+
+                    return user;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في التحقق من بيانات تسجيل الدخول للمستخدم {username}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// الحصول على كافة المستخدمين
+        /// </summary>
+        /// <param name="includeInactive">تضمين المستخدمين غير النشطين</param>
+        /// <returns>قائمة بالمستخدمين</returns>
         public List<UserDTO> GetAllUsers(bool includeInactive = false)
         {
             try
             {
                 string query = @"
-                    SELECT u.ID, u.Username, u.Email, u.FullName, u.RoleID, 
-                           r.Name AS RoleName, u.EmployeeID, 
-                           CASE WHEN e.FullName IS NOT NULL THEN e.FullName ELSE '' END AS EmployeeName,
-                           u.IsActive, u.MustChangePassword, u.LastLogin, 
-                           u.LastPasswordChange, u.FailedLoginAttempts, u.IsLocked, 
-                           u.LockoutEnd, u.CreatedAt, u.CreatedBy, 
-                           creator.Username AS CreatedByName,
-                           u.UpdatedAt, u.UpdatedBy,
-                           updater.Username AS UpdatedByName
+                    SELECT u.ID, u.Username, u.Email, u.FullName, u.RoleID, r.Name AS RoleName,
+                           u.EmployeeID, e.FullName AS EmployeeFullName, u.IsActive, 
+                           u.MustChangePassword, u.LastLogin, u.LastPasswordChange,
+                           u.FailedLoginAttempts, u.IsLocked, u.LockoutEnd
                     FROM Users u
                     LEFT JOIN Roles r ON u.RoleID = r.ID
-                    LEFT JOIN Employees e ON u.EmployeeID = e.ID
-                    LEFT JOIN Users creator ON u.CreatedBy = creator.ID
-                    LEFT JOIN Users updater ON u.UpdatedBy = updater.ID";
+                    LEFT JOIN Employees e ON u.EmployeeID = e.ID";
 
                 if (!includeInactive)
                 {
@@ -44,753 +143,688 @@ namespace HR.DataAccess
 
                 query += " ORDER BY u.Username";
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query);
-                List<UserDTO> users = new List<UserDTO>();
-
-                foreach (DataRow row in dataTable.Rows)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query))
                 {
-                    UserDTO user = new UserDTO
+                    List<UserDTO> users = new List<UserDTO>();
+
+                    while (reader.Read())
                     {
-                        ID = Convert.ToInt32(row["ID"]),
-                        Username = row["Username"].ToString(),
-                        Email = row["Email"] != DBNull.Value ? row["Email"].ToString() : null,
-                        FullName = row["FullName"].ToString(),
-                        RoleID = row["RoleID"] != DBNull.Value ? Convert.ToInt32(row["RoleID"]) : (int?)null,
-                        RoleName = row["RoleName"] != DBNull.Value ? row["RoleName"].ToString() : null,
-                        EmployeeID = row["EmployeeID"] != DBNull.Value ? Convert.ToInt32(row["EmployeeID"]) : (int?)null,
-                        EmployeeName = row["EmployeeName"] != DBNull.Value ? row["EmployeeName"].ToString() : null,
-                        IsActive = Convert.ToBoolean(row["IsActive"]),
-                        MustChangePassword = Convert.ToBoolean(row["MustChangePassword"]),
-                        LastLogin = row["LastLogin"] != DBNull.Value ? Convert.ToDateTime(row["LastLogin"]) : (DateTime?)null,
-                        LastPasswordChange = row["LastPasswordChange"] != DBNull.Value ? Convert.ToDateTime(row["LastPasswordChange"]) : (DateTime?)null,
-                        FailedLoginAttempts = Convert.ToInt32(row["FailedLoginAttempts"]),
-                        IsLocked = Convert.ToBoolean(row["IsLocked"]),
-                        LockoutEnd = row["LockoutEnd"] != DBNull.Value ? Convert.ToDateTime(row["LockoutEnd"]) : (DateTime?)null,
-                        CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                        CreatedBy = row["CreatedBy"] != DBNull.Value ? Convert.ToInt32(row["CreatedBy"]) : (int?)null,
-                        CreatedByName = row["CreatedByName"] != DBNull.Value ? row["CreatedByName"].ToString() : null,
-                        UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null,
-                        UpdatedBy = row["UpdatedBy"] != DBNull.Value ? Convert.ToInt32(row["UpdatedBy"]) : (int?)null,
-                        UpdatedByName = row["UpdatedByName"] != DBNull.Value ? row["UpdatedByName"].ToString() : null
-                    };
+                        UserDTO user = new UserDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Username = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Email = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            FullName = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            RoleID = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4),
+                            RoleName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                            EmployeeID = reader.IsDBNull(6) ? (int?)null : reader.GetInt32(6),
+                            EmployeeFullName = reader.IsDBNull(7) ? null : reader.GetString(7),
+                            IsActive = reader.GetBoolean(8),
+                            MustChangePassword = reader.GetBoolean(9),
+                            LastLogin = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10),
+                            LastPasswordChange = reader.IsDBNull(11) ? (DateTime?)null : reader.GetDateTime(11),
+                            FailedLoginAttempts = reader.IsDBNull(12) ? 0 : reader.GetInt32(12),
+                            IsLocked = reader.GetBoolean(13),
+                            LockoutEnd = reader.IsDBNull(14) ? (DateTime?)null : reader.GetDateTime(14)
+                        };
 
-                    users.Add(user);
+                        users.Add(user);
+                    }
+
+                    return users;
                 }
-
-                return users;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return new List<UserDTO>();
+                LogManager.LogException(ex, "فشل في الحصول على كافة المستخدمين");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets a user by ID
+        /// الحصول على المستخدم بواسطة المعرف
         /// </summary>
-        /// <param name="userId">User ID</param>
-        /// <returns>UserDTO object</returns>
-        public UserDTO GetUserById(int userId)
+        /// <param name="id">معرف المستخدم</param>
+        /// <returns>بيانات المستخدم</returns>
+        public UserDTO GetUserById(int id)
         {
             try
             {
                 string query = @"
-                    SELECT u.ID, u.Username, u.PasswordHash, u.PasswordSalt, u.Email, u.FullName, u.RoleID, 
-                           r.Name AS RoleName, u.EmployeeID, 
-                           CASE WHEN e.FullName IS NOT NULL THEN e.FullName ELSE '' END AS EmployeeName,
-                           u.IsActive, u.MustChangePassword, u.LastLogin, 
-                           u.LastPasswordChange, u.FailedLoginAttempts, u.IsLocked, 
-                           u.LockoutEnd, u.CreatedAt, u.CreatedBy, 
-                           creator.Username AS CreatedByName,
-                           u.UpdatedAt, u.UpdatedBy,
-                           updater.Username AS UpdatedByName
+                    SELECT u.ID, u.Username, u.Email, u.FullName, u.RoleID, r.Name AS RoleName,
+                           u.EmployeeID, e.FullName AS EmployeeFullName, u.IsActive, 
+                           u.MustChangePassword, u.LastLogin, u.LastPasswordChange,
+                           u.FailedLoginAttempts, u.IsLocked, u.LockoutEnd
                     FROM Users u
                     LEFT JOIN Roles r ON u.RoleID = r.ID
                     LEFT JOIN Employees e ON u.EmployeeID = e.ID
-                    LEFT JOIN Users creator ON u.CreatedBy = creator.ID
-                    LEFT JOIN Users updater ON u.UpdatedBy = updater.ID
-                    WHERE u.ID = @UserID";
+                    WHERE u.ID = @ID";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
-                    new SqlParameter("@UserID", userId)
+                    new SqlParameter("@ID", id)
                 };
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query, parameters);
-
-                if (dataTable.Rows.Count == 0)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query, parameters))
                 {
+                    if (reader.Read())
+                    {
+                        UserDTO user = new UserDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Username = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Email = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            FullName = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            RoleID = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4),
+                            RoleName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                            EmployeeID = reader.IsDBNull(6) ? (int?)null : reader.GetInt32(6),
+                            EmployeeFullName = reader.IsDBNull(7) ? null : reader.GetString(7),
+                            IsActive = reader.GetBoolean(8),
+                            MustChangePassword = reader.GetBoolean(9),
+                            LastLogin = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10),
+                            LastPasswordChange = reader.IsDBNull(11) ? (DateTime?)null : reader.GetDateTime(11),
+                            FailedLoginAttempts = reader.IsDBNull(12) ? 0 : reader.GetInt32(12),
+                            IsLocked = reader.GetBoolean(13),
+                            LockoutEnd = reader.IsDBNull(14) ? (DateTime?)null : reader.GetDateTime(14)
+                        };
+
+                        return user;
+                    }
+
                     return null;
                 }
-
-                DataRow row = dataTable.Rows[0];
-
-                UserDTO user = new UserDTO
-                {
-                    ID = Convert.ToInt32(row["ID"]),
-                    Username = row["Username"].ToString(),
-                    PasswordHash = row["PasswordHash"].ToString(),
-                    PasswordSalt = row["PasswordSalt"].ToString(),
-                    Email = row["Email"] != DBNull.Value ? row["Email"].ToString() : null,
-                    FullName = row["FullName"].ToString(),
-                    RoleID = row["RoleID"] != DBNull.Value ? Convert.ToInt32(row["RoleID"]) : (int?)null,
-                    RoleName = row["RoleName"] != DBNull.Value ? row["RoleName"].ToString() : null,
-                    EmployeeID = row["EmployeeID"] != DBNull.Value ? Convert.ToInt32(row["EmployeeID"]) : (int?)null,
-                    EmployeeName = row["EmployeeName"] != DBNull.Value ? row["EmployeeName"].ToString() : null,
-                    IsActive = Convert.ToBoolean(row["IsActive"]),
-                    MustChangePassword = Convert.ToBoolean(row["MustChangePassword"]),
-                    LastLogin = row["LastLogin"] != DBNull.Value ? Convert.ToDateTime(row["LastLogin"]) : (DateTime?)null,
-                    LastPasswordChange = row["LastPasswordChange"] != DBNull.Value ? Convert.ToDateTime(row["LastPasswordChange"]) : (DateTime?)null,
-                    FailedLoginAttempts = Convert.ToInt32(row["FailedLoginAttempts"]),
-                    IsLocked = Convert.ToBoolean(row["IsLocked"]),
-                    LockoutEnd = row["LockoutEnd"] != DBNull.Value ? Convert.ToDateTime(row["LockoutEnd"]) : (DateTime?)null,
-                    CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                    CreatedBy = row["CreatedBy"] != DBNull.Value ? Convert.ToInt32(row["CreatedBy"]) : (int?)null,
-                    CreatedByName = row["CreatedByName"] != DBNull.Value ? row["CreatedByName"].ToString() : null,
-                    UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null,
-                    UpdatedBy = row["UpdatedBy"] != DBNull.Value ? Convert.ToInt32(row["UpdatedBy"]) : (int?)null,
-                    UpdatedByName = row["UpdatedByName"] != DBNull.Value ? row["UpdatedByName"].ToString() : null
-                };
-
-                return user;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return null;
+                LogManager.LogException(ex, $"فشل في الحصول على المستخدم رقم {id}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets a user by username
+        /// الحصول على المستخدم بواسطة اسم المستخدم
         /// </summary>
-        /// <param name="username">Username</param>
-        /// <returns>UserDTO object</returns>
+        /// <param name="username">اسم المستخدم</param>
+        /// <returns>بيانات المستخدم</returns>
         public UserDTO GetUserByUsername(string username)
         {
             try
             {
                 string query = @"
-                    SELECT u.ID, u.Username, u.PasswordHash, u.PasswordSalt, u.Email, u.FullName, u.RoleID, 
-                           r.Name AS RoleName, u.EmployeeID, 
-                           CASE WHEN e.FullName IS NOT NULL THEN e.FullName ELSE '' END AS EmployeeName,
-                           u.IsActive, u.MustChangePassword, u.LastLogin, 
-                           u.LastPasswordChange, u.FailedLoginAttempts, u.IsLocked, 
-                           u.LockoutEnd, u.CreatedAt, u.CreatedBy, 
-                           creator.Username AS CreatedByName,
-                           u.UpdatedAt, u.UpdatedBy,
-                           updater.Username AS UpdatedByName
+                    SELECT u.ID, u.Username, u.Email, u.FullName, u.RoleID, r.Name AS RoleName,
+                           u.EmployeeID, e.FullName AS EmployeeFullName, u.IsActive, 
+                           u.MustChangePassword, u.LastLogin, u.LastPasswordChange,
+                           u.FailedLoginAttempts, u.IsLocked, u.LockoutEnd
                     FROM Users u
                     LEFT JOIN Roles r ON u.RoleID = r.ID
                     LEFT JOIN Employees e ON u.EmployeeID = e.ID
-                    LEFT JOIN Users creator ON u.CreatedBy = creator.ID
-                    LEFT JOIN Users updater ON u.UpdatedBy = updater.ID
                     WHERE u.Username = @Username";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
                     new SqlParameter("@Username", username)
                 };
 
-                DataTable dataTable = ConnectionManager.ExecuteQuery(query, parameters);
-
-                if (dataTable.Rows.Count == 0)
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query, parameters))
                 {
+                    if (reader.Read())
+                    {
+                        UserDTO user = new UserDTO
+                        {
+                            ID = reader.GetInt32(0),
+                            Username = reader.IsDBNull(1) ? null : reader.GetString(1),
+                            Email = reader.IsDBNull(2) ? null : reader.GetString(2),
+                            FullName = reader.IsDBNull(3) ? null : reader.GetString(3),
+                            RoleID = reader.IsDBNull(4) ? (int?)null : reader.GetInt32(4),
+                            RoleName = reader.IsDBNull(5) ? null : reader.GetString(5),
+                            EmployeeID = reader.IsDBNull(6) ? (int?)null : reader.GetInt32(6),
+                            EmployeeFullName = reader.IsDBNull(7) ? null : reader.GetString(7),
+                            IsActive = reader.GetBoolean(8),
+                            MustChangePassword = reader.GetBoolean(9),
+                            LastLogin = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10),
+                            LastPasswordChange = reader.IsDBNull(11) ? (DateTime?)null : reader.GetDateTime(11),
+                            FailedLoginAttempts = reader.IsDBNull(12) ? 0 : reader.GetInt32(12),
+                            IsLocked = reader.GetBoolean(13),
+                            LockoutEnd = reader.IsDBNull(14) ? (DateTime?)null : reader.GetDateTime(14)
+                        };
+
+                        return user;
+                    }
+
                     return null;
                 }
-
-                DataRow row = dataTable.Rows[0];
-
-                UserDTO user = new UserDTO
-                {
-                    ID = Convert.ToInt32(row["ID"]),
-                    Username = row["Username"].ToString(),
-                    PasswordHash = row["PasswordHash"].ToString(),
-                    PasswordSalt = row["PasswordSalt"].ToString(),
-                    Email = row["Email"] != DBNull.Value ? row["Email"].ToString() : null,
-                    FullName = row["FullName"].ToString(),
-                    RoleID = row["RoleID"] != DBNull.Value ? Convert.ToInt32(row["RoleID"]) : (int?)null,
-                    RoleName = row["RoleName"] != DBNull.Value ? row["RoleName"].ToString() : null,
-                    EmployeeID = row["EmployeeID"] != DBNull.Value ? Convert.ToInt32(row["EmployeeID"]) : (int?)null,
-                    EmployeeName = row["EmployeeName"] != DBNull.Value ? row["EmployeeName"].ToString() : null,
-                    IsActive = Convert.ToBoolean(row["IsActive"]),
-                    MustChangePassword = Convert.ToBoolean(row["MustChangePassword"]),
-                    LastLogin = row["LastLogin"] != DBNull.Value ? Convert.ToDateTime(row["LastLogin"]) : (DateTime?)null,
-                    LastPasswordChange = row["LastPasswordChange"] != DBNull.Value ? Convert.ToDateTime(row["LastPasswordChange"]) : (DateTime?)null,
-                    FailedLoginAttempts = Convert.ToInt32(row["FailedLoginAttempts"]),
-                    IsLocked = Convert.ToBoolean(row["IsLocked"]),
-                    LockoutEnd = row["LockoutEnd"] != DBNull.Value ? Convert.ToDateTime(row["LockoutEnd"]) : (DateTime?)null,
-                    CreatedAt = Convert.ToDateTime(row["CreatedAt"]),
-                    CreatedBy = row["CreatedBy"] != DBNull.Value ? Convert.ToInt32(row["CreatedBy"]) : (int?)null,
-                    CreatedByName = row["CreatedByName"] != DBNull.Value ? row["CreatedByName"].ToString() : null,
-                    UpdatedAt = row["UpdatedAt"] != DBNull.Value ? Convert.ToDateTime(row["UpdatedAt"]) : (DateTime?)null,
-                    UpdatedBy = row["UpdatedBy"] != DBNull.Value ? Convert.ToInt32(row["UpdatedBy"]) : (int?)null,
-                    UpdatedByName = row["UpdatedByName"] != DBNull.Value ? row["UpdatedByName"].ToString() : null
-                };
-
-                return user;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return null;
+                LogManager.LogException(ex, $"فشل في الحصول على المستخدم باسم {username}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Creates a new user
+        /// إنشاء مستخدم جديد
         /// </summary>
-        /// <param name="user">UserDTO object</param>
-        /// <param name="password">Plain text password</param>
-        /// <param name="createdByUserId">User ID who created this user</param>
-        /// <returns>ID of the new user</returns>
-        public int CreateUser(UserDTO user, string password, int? createdByUserId)
+        /// <param name="user">بيانات المستخدم</param>
+        /// <param name="password">كلمة المرور</param>
+        /// <param name="createdBy">معرف المستخدم المنشئ</param>
+        /// <returns>معرف المستخدم الجديد</returns>
+        public int CreateUser(UserCreateDTO user, string password, int? createdBy)
         {
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+
             try
             {
-                // Check if username already exists
-                string checkQuery = "SELECT COUNT(*) FROM Users WHERE Username = @Username";
-                SqlParameter[] checkParams = new SqlParameter[]
+                // التحقق من عدم وجود مستخدم بنفس اسم المستخدم
+                if (IsUsernameExists(user.Username))
                 {
-                    new SqlParameter("@Username", user.Username)
-                };
-                int count = Convert.ToInt32(ConnectionManager.ExecuteScalar(checkQuery, checkParams));
-
-                if (count > 0)
-                {
-                    return -1; // Username already exists
+                    throw new InvalidOperationException($"يوجد مستخدم آخر باسم {user.Username}");
                 }
 
-                // Hash the password
-                string passwordHash;
-                string passwordSalt;
-                passwordHash = Encryption.HashPassword(password, out passwordSalt);
+                // إنشاء ملح عشوائي
+                string salt = GenerateRandomSalt();
+
+                // حساب قيمة التشفير
+                string saltedPassword = password + salt;
+                string passwordHash = ComputeSHA256Hash(saltedPassword);
 
                 string query = @"
                     INSERT INTO Users (
-                        Username, PasswordHash, PasswordSalt, Email, FullName, 
-                        RoleID, EmployeeID, IsActive, MustChangePassword, 
-                        LastPasswordChange, FailedLoginAttempts, IsLocked, 
-                        CreatedAt, CreatedBy)
+                        Username, PasswordHash, PasswordSalt, Email, FullName,
+                        RoleID, EmployeeID, IsActive, MustChangePassword,
+                        LastPasswordChange, CreatedAt, CreatedBy
+                    )
                     VALUES (
-                        @Username, @PasswordHash, @PasswordSalt, @Email, @FullName, 
-                        @RoleID, @EmployeeID, @IsActive, @MustChangePassword, 
-                        @LastPasswordChange, @FailedLoginAttempts, @IsLocked, 
-                        @CreatedAt, @CreatedBy);
+                        @Username, @PasswordHash, @PasswordSalt, @Email, @FullName,
+                        @RoleID, @EmployeeID, @IsActive, @MustChangePassword,
+                        GETDATE(), GETDATE(), @CreatedBy
+                    );
                     SELECT SCOPE_IDENTITY();";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
                     new SqlParameter("@Username", user.Username),
                     new SqlParameter("@PasswordHash", passwordHash),
-                    new SqlParameter("@PasswordSalt", passwordSalt),
+                    new SqlParameter("@PasswordSalt", salt),
                     new SqlParameter("@Email", (object)user.Email ?? DBNull.Value),
-                    new SqlParameter("@FullName", user.FullName),
+                    new SqlParameter("@FullName", (object)user.FullName ?? DBNull.Value),
                     new SqlParameter("@RoleID", (object)user.RoleID ?? DBNull.Value),
                     new SqlParameter("@EmployeeID", (object)user.EmployeeID ?? DBNull.Value),
                     new SqlParameter("@IsActive", user.IsActive),
                     new SqlParameter("@MustChangePassword", user.MustChangePassword),
-                    new SqlParameter("@LastPasswordChange", DateTime.Now),
-                    new SqlParameter("@FailedLoginAttempts", 0),
-                    new SqlParameter("@IsLocked", false),
-                    new SqlParameter("@CreatedAt", DateTime.Now),
-                    new SqlParameter("@CreatedBy", (object)createdByUserId ?? DBNull.Value)
+                    new SqlParameter("@CreatedBy", (object)createdBy ?? DBNull.Value)
                 };
 
                 object result = ConnectionManager.ExecuteScalar(query, parameters);
-                int userId = Convert.ToInt32(result);
-
-                // Log activity
-                ActivityLogRepository activityRepo = new ActivityLogRepository();
-                activityRepo.LogActivity(createdByUserId, "Add", "Users", 
-                    $"Added new user: {user.Username}", userId, null, null);
-
-                return userId;
+                return Convert.ToInt32(result);
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return 0;
+                LogManager.LogException(ex, "فشل في إنشاء مستخدم جديد");
+                throw;
             }
         }
 
         /// <summary>
-        /// Updates an existing user
+        /// تحديث بيانات المستخدم
         /// </summary>
-        /// <param name="user">UserDTO object</param>
-        /// <param name="updatedByUserId">User ID who updated this user</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool UpdateUser(UserDTO user, int? updatedByUserId)
+        /// <param name="user">بيانات المستخدم</param>
+        /// <param name="updatedBy">معرف المستخدم المحدث</param>
+        /// <returns>نجاح العملية</returns>
+        public bool UpdateUser(UserUpdateDTO user, int? updatedBy)
         {
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
+
             try
             {
-                // Get existing user for activity log
-                UserDTO existingUser = GetUserById(user.ID);
-                if (existingUser == null)
-                {
-                    return false;
-                }
-
-                string oldValues = Newtonsoft.Json.JsonConvert.SerializeObject(existingUser);
-
                 string query = @"
                     UPDATE Users
-                    SET Username = @Username,
-                        Email = @Email,
+                    SET Email = @Email,
                         FullName = @FullName,
                         RoleID = @RoleID,
                         EmployeeID = @EmployeeID,
                         IsActive = @IsActive,
                         MustChangePassword = @MustChangePassword,
-                        UpdatedAt = @UpdatedAt,
+                        UpdatedAt = GETDATE(),
                         UpdatedBy = @UpdatedBy
                     WHERE ID = @ID";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
                     new SqlParameter("@ID", user.ID),
-                    new SqlParameter("@Username", user.Username),
                     new SqlParameter("@Email", (object)user.Email ?? DBNull.Value),
-                    new SqlParameter("@FullName", user.FullName),
+                    new SqlParameter("@FullName", (object)user.FullName ?? DBNull.Value),
                     new SqlParameter("@RoleID", (object)user.RoleID ?? DBNull.Value),
                     new SqlParameter("@EmployeeID", (object)user.EmployeeID ?? DBNull.Value),
                     new SqlParameter("@IsActive", user.IsActive),
                     new SqlParameter("@MustChangePassword", user.MustChangePassword),
-                    new SqlParameter("@UpdatedAt", DateTime.Now),
-                    new SqlParameter("@UpdatedBy", (object)updatedByUserId ?? DBNull.Value)
+                    new SqlParameter("@UpdatedBy", (object)updatedBy ?? DBNull.Value)
                 };
 
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                // Log activity
-                if (result > 0)
-                {
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    string newValues = Newtonsoft.Json.JsonConvert.SerializeObject(user);
-                    activityRepo.LogActivity(updatedByUserId, "Edit", "Users", 
-                        $"Updated user: {user.Username}", user.ID, oldValues, newValues);
-                }
-
-                return result > 0;
+                int rowsAffected = ConnectionManager.ExecuteNonQuery(query, parameters);
+                return rowsAffected > 0;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return false;
+                LogManager.LogException(ex, $"فشل في تحديث المستخدم رقم {user.ID}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Changes a user's password
+        /// تغيير كلمة المرور
         /// </summary>
-        /// <param name="userId">User ID</param>
-        /// <param name="newPassword">New password</param>
-        /// <param name="updatedByUserId">User ID who changed the password</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool ChangePassword(int userId, string newPassword, int? updatedByUserId)
+        /// <param name="userId">معرف المستخدم</param>
+        /// <param name="newPassword">كلمة المرور الجديدة</param>
+        /// <returns>نجاح العملية</returns>
+        public bool ChangePassword(int userId, string newPassword)
         {
             try
             {
-                // Hash the new password
-                string passwordHash;
-                string passwordSalt;
-                passwordHash = Encryption.HashPassword(newPassword, out passwordSalt);
+                // إنشاء ملح عشوائي
+                string salt = GenerateRandomSalt();
+
+                // حساب قيمة التشفير
+                string saltedPassword = newPassword + salt;
+                string passwordHash = ComputeSHA256Hash(saltedPassword);
 
                 string query = @"
                     UPDATE Users
                     SET PasswordHash = @PasswordHash,
                         PasswordSalt = @PasswordSalt,
-                        LastPasswordChange = @LastPasswordChange,
+                        LastPasswordChange = GETDATE(),
                         MustChangePassword = 0,
-                        UpdatedAt = @UpdatedAt,
-                        UpdatedBy = @UpdatedBy
+                        UpdatedAt = GETDATE()
                     WHERE ID = @ID";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
                     new SqlParameter("@ID", userId),
                     new SqlParameter("@PasswordHash", passwordHash),
-                    new SqlParameter("@PasswordSalt", passwordSalt),
-                    new SqlParameter("@LastPasswordChange", DateTime.Now),
-                    new SqlParameter("@UpdatedAt", DateTime.Now),
-                    new SqlParameter("@UpdatedBy", (object)updatedByUserId ?? DBNull.Value)
+                    new SqlParameter("@PasswordSalt", salt)
                 };
 
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                // Log activity
-                if (result > 0)
-                {
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    activityRepo.LogActivity(updatedByUserId, "Security", "Users", 
-                        $"Changed password for user ID: {userId}", userId, null, null);
-                }
-
-                return result > 0;
+                int rowsAffected = ConnectionManager.ExecuteNonQuery(query, parameters);
+                return rowsAffected > 0;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return false;
+                LogManager.LogException(ex, $"فشل في تغيير كلمة المرور للمستخدم رقم {userId}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Resets a user's password
+        /// التحقق من صحة كلمة المرور الحالية
         /// </summary>
-        /// <param name="userId">User ID</param>
-        /// <param name="newPassword">New password</param>
-        /// <param name="updatedByUserId">User ID who reset the password</param>
-        /// <param name="mustChangePassword">Whether the user must change password at next login</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool ResetPassword(int userId, string newPassword, int? updatedByUserId, bool mustChangePassword = true)
+        /// <param name="userId">معرف المستخدم</param>
+        /// <param name="password">كلمة المرور</param>
+        /// <returns>صحة كلمة المرور</returns>
+        public bool ValidatePassword(int userId, string password)
         {
             try
             {
-                // Hash the new password
-                string passwordHash;
-                string passwordSalt;
-                passwordHash = Encryption.HashPassword(newPassword, out passwordSalt);
+                string query = "SELECT PasswordHash, PasswordSalt FROM Users WHERE ID = @ID";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@ID", userId)
+                };
+
+                using (SqlDataReader reader = ConnectionManager.ExecuteReader(query, parameters))
+                {
+                    if (reader.Read())
+                    {
+                        string storedPasswordHash = reader.IsDBNull(0) ? null : reader.GetString(0);
+                        string storedPasswordSalt = reader.IsDBNull(1) ? null : reader.GetString(1);
+
+                        // التحقق من كلمة المرور
+                        string saltedPassword = password + (storedPasswordSalt ?? SYSTEM_SALT);
+                        string passwordHash = ComputeSHA256Hash(saltedPassword);
+
+                        return passwordHash == storedPasswordHash;
+                    }
+
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في التحقق من كلمة المرور للمستخدم رقم {userId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// إعادة تعيين كلمة المرور
+        /// </summary>
+        /// <param name="userId">معرف المستخدم</param>
+        /// <param name="newPassword">كلمة المرور الجديدة</param>
+        /// <param name="mustChangePassword">يجب تغيير كلمة المرور عند تسجيل الدخول التالي</param>
+        /// <returns>نجاح العملية</returns>
+        public bool ResetPassword(int userId, string newPassword, bool mustChangePassword)
+        {
+            try
+            {
+                // إنشاء ملح عشوائي
+                string salt = GenerateRandomSalt();
+
+                // حساب قيمة التشفير
+                string saltedPassword = newPassword + salt;
+                string passwordHash = ComputeSHA256Hash(saltedPassword);
 
                 string query = @"
                     UPDATE Users
                     SET PasswordHash = @PasswordHash,
                         PasswordSalt = @PasswordSalt,
-                        LastPasswordChange = @LastPasswordChange,
+                        LastPasswordChange = GETDATE(),
                         MustChangePassword = @MustChangePassword,
-                        UpdatedAt = @UpdatedAt,
-                        UpdatedBy = @UpdatedBy
+                        UpdatedAt = GETDATE()
                     WHERE ID = @ID";
 
-                SqlParameter[] parameters = new SqlParameter[]
+                SqlParameter[] parameters =
                 {
                     new SqlParameter("@ID", userId),
                     new SqlParameter("@PasswordHash", passwordHash),
-                    new SqlParameter("@PasswordSalt", passwordSalt),
-                    new SqlParameter("@LastPasswordChange", DateTime.Now),
-                    new SqlParameter("@MustChangePassword", mustChangePassword),
-                    new SqlParameter("@UpdatedAt", DateTime.Now),
-                    new SqlParameter("@UpdatedBy", (object)updatedByUserId ?? DBNull.Value)
+                    new SqlParameter("@PasswordSalt", salt),
+                    new SqlParameter("@MustChangePassword", mustChangePassword)
                 };
 
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                // Log activity
-                if (result > 0)
-                {
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    activityRepo.LogActivity(updatedByUserId, "Security", "Users", 
-                        $"Reset password for user ID: {userId}", userId, null, null);
-                }
-
-                return result > 0;
+                int rowsAffected = ConnectionManager.ExecuteNonQuery(query, parameters);
+                return rowsAffected > 0;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return false;
+                LogManager.LogException(ex, $"فشل في إعادة تعيين كلمة المرور للمستخدم رقم {userId}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Locks a user account
+        /// حذف مستخدم
         /// </summary>
-        /// <param name="userId">User ID</param>
-        /// <param name="lockoutEnd">When the lockout should end</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool LockUserAccount(int userId, DateTime lockoutEnd)
+        /// <param name="id">معرف المستخدم</param>
+        /// <returns>نجاح العملية</returns>
+        public bool DeleteUser(int id)
         {
             try
             {
-                string query = @"
-                    UPDATE Users
-                    SET IsLocked = 1,
-                        LockoutEnd = @LockoutEnd,
-                        UpdatedAt = @UpdatedAt
-                    WHERE ID = @ID";
-
-                SqlParameter[] parameters = new SqlParameter[]
-                {
-                    new SqlParameter("@ID", userId),
-                    new SqlParameter("@LockoutEnd", lockoutEnd),
-                    new SqlParameter("@UpdatedAt", DateTime.Now)
-                };
-
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                // Log activity
-                if (result > 0)
-                {
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    activityRepo.LogActivity(null, "Security", "Users", 
-                        $"Locked user account ID: {userId} until {lockoutEnd}", userId, null, null);
-                }
-
-                return result > 0;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Unlocks a user account
-        /// </summary>
-        /// <param name="userId">User ID</param>
-        /// <param name="updatedByUserId">User ID who unlocked the account</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool UnlockUserAccount(int userId, int? updatedByUserId)
-        {
-            try
-            {
-                string query = @"
-                    UPDATE Users
-                    SET IsLocked = 0,
-                        LockoutEnd = NULL,
-                        FailedLoginAttempts = 0,
-                        UpdatedAt = @UpdatedAt,
-                        UpdatedBy = @UpdatedBy
-                    WHERE ID = @ID";
-
-                SqlParameter[] parameters = new SqlParameter[]
-                {
-                    new SqlParameter("@ID", userId),
-                    new SqlParameter("@UpdatedAt", DateTime.Now),
-                    new SqlParameter("@UpdatedBy", (object)updatedByUserId ?? DBNull.Value)
-                };
-
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                // Log activity
-                if (result > 0)
-                {
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    activityRepo.LogActivity(updatedByUserId, "Security", "Users", 
-                        $"Unlocked user account ID: {userId}", userId, null, null);
-                }
-
-                return result > 0;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Increments the failed login attempts for a user
-        /// </summary>
-        /// <param name="userId">User ID</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool IncrementFailedLoginAttempts(int userId)
-        {
-            try
-            {
-                string query = @"
-                    UPDATE Users
-                    SET FailedLoginAttempts = FailedLoginAttempts + 1,
-                        UpdatedAt = @UpdatedAt
-                    WHERE ID = @ID";
-
-                SqlParameter[] parameters = new SqlParameter[]
-                {
-                    new SqlParameter("@ID", userId),
-                    new SqlParameter("@UpdatedAt", DateTime.Now)
-                };
-
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-                return result > 0;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Resets the failed login attempts for a user
-        /// </summary>
-        /// <param name="userId">User ID</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool ResetFailedLoginAttempts(int userId)
-        {
-            try
-            {
-                string query = @"
-                    UPDATE Users
-                    SET FailedLoginAttempts = 0,
-                        UpdatedAt = @UpdatedAt
-                    WHERE ID = @ID";
-
-                SqlParameter[] parameters = new SqlParameter[]
-                {
-                    new SqlParameter("@ID", userId),
-                    new SqlParameter("@UpdatedAt", DateTime.Now)
-                };
-
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-                return result > 0;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Updates the last login time for a user
-        /// </summary>
-        /// <param name="userId">User ID</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool UpdateLastLogin(int userId)
-        {
-            try
-            {
-                string query = @"
-                    UPDATE Users
-                    SET LastLogin = @LastLogin,
-                        UpdatedAt = @UpdatedAt
-                    WHERE ID = @ID";
-
-                SqlParameter[] parameters = new SqlParameter[]
-                {
-                    new SqlParameter("@ID", userId),
-                    new SqlParameter("@LastLogin", DateTime.Now),
-                    new SqlParameter("@UpdatedAt", DateTime.Now)
-                };
-
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-                return result > 0;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Deletes a user
-        /// </summary>
-        /// <param name="userId">User ID to delete</param>
-        /// <param name="deletedByUserId">User ID who deleted the user</param>
-        /// <returns>True if successful, false otherwise</returns>
-        public bool DeleteUser(int userId, int deletedByUserId)
-        {
-            try
-            {
-                // Get existing user for activity log
-                UserDTO existingUser = GetUserById(userId);
-                if (existingUser == null)
-                {
-                    return false;
-                }
-
-                string oldValues = Newtonsoft.Json.JsonConvert.SerializeObject(existingUser);
-
-                // Check if this is the last admin user
+                // التحقق من عدم وجود سجلات مرتبطة بالمستخدم
                 string checkQuery = @"
-                    SELECT COUNT(*) 
-                    FROM Users u
-                    JOIN Roles r ON u.RoleID = r.ID
-                    JOIN RolePermissions rp ON r.ID = rp.RoleID
-                    WHERE u.ID <> @UserID
-                      AND u.IsActive = 1
-                      AND rp.ModuleName = 'Users'
-                      AND rp.CanAdd = 1
-                      AND rp.CanEdit = 1
-                      AND rp.CanDelete = 1";
+                    SELECT 
+                        (SELECT COUNT(*) FROM LoginHistory WHERE UserID = @ID) +
+                        (SELECT COUNT(*) FROM ActivityLog WHERE UserID = @ID)";
 
-                SqlParameter[] checkParams = new SqlParameter[]
+                SqlParameter[] checkParameters =
                 {
-                    new SqlParameter("@UserID", userId)
+                    new SqlParameter("@ID", id)
                 };
 
-                int adminCount = Convert.ToInt32(ConnectionManager.ExecuteScalar(checkQuery, checkParams));
+                object result = ConnectionManager.ExecuteScalar(checkQuery, checkParameters);
+                int count = Convert.ToInt32(result);
 
-                if (adminCount == 0)
+                if (count > 0)
                 {
-                    // This is the last admin user, don't allow deletion
-                    return false;
+                    // تعطيل المستخدم بدلاً من حذفه
+                    string updateQuery = "UPDATE Users SET IsActive = 0, UpdatedAt = GETDATE() WHERE ID = @ID";
+                    
+                    SqlParameter[] updateParameters =
+                    {
+                        new SqlParameter("@ID", id)
+                    };
+
+                    int updateRowsAffected = ConnectionManager.ExecuteNonQuery(updateQuery, updateParameters);
+                    return updateRowsAffected > 0;
                 }
 
-                // Delete the user
-                string query = "DELETE FROM Users WHERE ID = @UserID";
-                SqlParameter[] parameters = new SqlParameter[]
+                string query = "DELETE FROM Users WHERE ID = @ID";
+
+                SqlParameter[] parameters =
                 {
-                    new SqlParameter("@UserID", userId)
+                    new SqlParameter("@ID", id)
                 };
 
-                int result = ConnectionManager.ExecuteNonQuery(query, parameters);
-
-                // Log activity
-                if (result > 0)
-                {
-                    ActivityLogRepository activityRepo = new ActivityLogRepository();
-                    activityRepo.LogActivity(deletedByUserId, "Delete", "Users", 
-                        $"Deleted user: {existingUser.Username}", userId, oldValues, null);
-                }
-
-                return result > 0;
+                int rowsAffected = ConnectionManager.ExecuteNonQuery(query, parameters);
+                return rowsAffected > 0;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return false;
+                LogManager.LogException(ex, $"فشل في حذف المستخدم رقم {id}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets users for a dropdown list
+        /// تعطيل أو تفعيل حساب مستخدم
         /// </summary>
-        /// <param name="includeInactive">Whether to include inactive users</param>
-        /// <returns>DataTable with user ID and name</returns>
-        public DataTable GetUsersForDropDown(bool includeInactive = false)
+        /// <param name="userId">معرف المستخدم</param>
+        /// <param name="isActive">حالة التفعيل</param>
+        /// <returns>نجاح العملية</returns>
+        public bool SetUserActive(int userId, bool isActive)
+        {
+            try
+            {
+                string query = "UPDATE Users SET IsActive = @IsActive, UpdatedAt = GETDATE() WHERE ID = @ID";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@ID", userId),
+                    new SqlParameter("@IsActive", isActive)
+                };
+
+                int rowsAffected = ConnectionManager.ExecuteNonQuery(query, parameters);
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في {(isActive ? "تفعيل" : "تعطيل")} المستخدم رقم {userId}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// إلغاء قفل حساب مستخدم
+        /// </summary>
+        /// <param name="userId">معرف المستخدم</param>
+        /// <returns>نجاح العملية</returns>
+        public bool UnlockUser(int userId)
         {
             try
             {
                 string query = @"
-                    SELECT ID, Username + ' (' + FullName + ')' AS Name
-                    FROM Users";
+                    UPDATE Users 
+                    SET IsLocked = 0, 
+                        LockoutEnd = NULL, 
+                        FailedLoginAttempts = 0, 
+                        UpdatedAt = GETDATE() 
+                    WHERE ID = @ID";
 
-                if (!includeInactive)
+                SqlParameter[] parameters =
                 {
-                    query += " WHERE IsActive = 1";
-                }
+                    new SqlParameter("@ID", userId)
+                };
 
-                query += " ORDER BY Username";
-
-                return ConnectionManager.ExecuteQuery(query);
+                int rowsAffected = ConnectionManager.ExecuteNonQuery(query, parameters);
+                return rowsAffected > 0;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return new DataTable();
+                LogManager.LogException(ex, $"فشل في إلغاء قفل المستخدم رقم {userId}");
+                throw;
             }
         }
 
         /// <summary>
-        /// Gets the count of users
+        /// تحديث وقت آخر تسجيل دخول
         /// </summary>
-        /// <returns>Number of users</returns>
-        public int GetUsersCount()
+        /// <param name="userId">معرف المستخدم</param>
+        public void UpdateLastLogin(int userId)
         {
             try
             {
-                string query = "SELECT COUNT(*) FROM Users";
-                return Convert.ToInt32(ConnectionManager.ExecuteScalar(query));
+                string query = @"
+                    UPDATE Users 
+                    SET LastLogin = GETDATE(), 
+                        FailedLoginAttempts = 0, 
+                        IsLocked = 0, 
+                        LockoutEnd = NULL 
+                    WHERE ID = @ID";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@ID", userId)
+                };
+
+                ConnectionManager.ExecuteNonQuery(query, parameters);
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex);
-                return 0;
+                LogManager.LogException(ex, $"فشل في تحديث وقت آخر تسجيل دخول للمستخدم رقم {userId}");
+                // لا نعيد رمي الاستثناء لتجنب توقف عملية تسجيل الدخول
             }
+        }
+
+        /// <summary>
+        /// زيادة عدد محاولات تسجيل الدخول الفاشلة
+        /// </summary>
+        /// <param name="userId">معرف المستخدم</param>
+        private void IncrementFailedLoginAttempts(int userId)
+        {
+            try
+            {
+                // الحصول على عدد المحاولات الفاشلة الحالي
+                string getQuery = "SELECT FailedLoginAttempts FROM Users WHERE ID = @ID";
+
+                SqlParameter[] getParameters =
+                {
+                    new SqlParameter("@ID", userId)
+                };
+
+                object result = ConnectionManager.ExecuteScalar(getQuery, getParameters);
+                int failedAttempts = Convert.ToInt32(result) + 1;
+
+                // تحديث عدد المحاولات الفاشلة
+                string updateQuery = @"
+                    UPDATE Users 
+                    SET FailedLoginAttempts = @FailedAttempts,
+                        IsLocked = CASE WHEN @FailedAttempts >= 5 THEN 1 ELSE 0 END,
+                        LockoutEnd = CASE WHEN @FailedAttempts >= 5 THEN DATEADD(MINUTE, 30, GETDATE()) ELSE NULL END
+                    WHERE ID = @ID";
+
+                SqlParameter[] updateParameters =
+                {
+                    new SqlParameter("@ID", userId),
+                    new SqlParameter("@FailedAttempts", failedAttempts)
+                };
+
+                ConnectionManager.ExecuteNonQuery(updateQuery, updateParameters);
+
+                // تسجيل عملية الدخول الفاشلة
+                LogLogin(userId, false);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في زيادة عدد محاولات تسجيل الدخول الفاشلة للمستخدم رقم {userId}");
+                // لا نعيد رمي الاستثناء لتجنب توقف عملية تسجيل الدخول
+            }
+        }
+
+        /// <summary>
+        /// تسجيل عملية تسجيل الدخول
+        /// </summary>
+        /// <param name="userId">معرف المستخدم</param>
+        /// <param name="success">نجاح العملية</param>
+        private void LogLogin(int userId, bool success)
+        {
+            try
+            {
+                string query = @"
+                    INSERT INTO LoginHistory (UserID, LoginTime, IPAddress, LoginStatus)
+                    VALUES (@UserID, GETDATE(), 'Unknown', @LoginStatus)";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@UserID", userId),
+                    new SqlParameter("@LoginStatus", success ? "Success" : "Failed")
+                };
+
+                ConnectionManager.ExecuteNonQuery(query, parameters);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في تسجيل عملية تسجيل الدخول للمستخدم رقم {userId}");
+                // لا نعيد رمي الاستثناء لتجنب توقف عملية تسجيل الدخول
+            }
+        }
+
+        /// <summary>
+        /// التحقق من وجود مستخدم باسم المستخدم المحدد
+        /// </summary>
+        /// <param name="username">اسم المستخدم</param>
+        /// <returns>وجود المستخدم</returns>
+        private bool IsUsernameExists(string username)
+        {
+            try
+            {
+                string query = "SELECT COUNT(*) FROM Users WHERE Username = @Username";
+
+                SqlParameter[] parameters =
+                {
+                    new SqlParameter("@Username", username)
+                };
+
+                object result = ConnectionManager.ExecuteScalar(query, parameters);
+                int count = Convert.ToInt32(result);
+
+                return count > 0;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في التحقق من وجود مستخدم باسم {username}");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// إنشاء قيمة تشفير SHA-256
+        /// </summary>
+        /// <param name="input">النص المدخل</param>
+        /// <returns>قيمة التشفير</returns>
+        private string ComputeSHA256Hash(string input)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(input);
+                byte[] hash = sha256.ComputeHash(bytes);
+                
+                StringBuilder builder = new StringBuilder();
+                for (int i = 0; i < hash.Length; i++)
+                {
+                    builder.Append(hash[i].ToString("x2"));
+                }
+                
+                return builder.ToString();
+            }
+        }
+
+        /// <summary>
+        /// إنشاء ملح عشوائي
+        /// </summary>
+        /// <returns>الملح العشوائي</returns>
+        private string GenerateRandomSalt()
+        {
+            byte[] saltBytes = new byte[16];
+            using (var rng = new RNGCryptoServiceProvider())
+            {
+                rng.GetBytes(saltBytes);
+            }
+            
+            return Convert.ToBase64String(saltBytes);
         }
     }
 }
