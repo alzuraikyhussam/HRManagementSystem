@@ -29,214 +29,250 @@ namespace HR.UI.Forms
         private void InitializeComponent()
         {
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(LoginForm));
+            this.pictureEditLogo = new DevExpress.XtraEditors.PictureEdit();
+            this.labelCompanyName = new DevExpress.XtraEditors.LabelControl();
             this.labelControl1 = new DevExpress.XtraEditors.LabelControl();
             this.labelControl2 = new DevExpress.XtraEditors.LabelControl();
-            this.lblUsername = new DevExpress.XtraEditors.LabelControl();
-            this.lblPassword = new DevExpress.XtraEditors.LabelControl();
-            this.txtUsername = new DevExpress.XtraEditors.TextEdit();
-            this.txtPassword = new DevExpress.XtraEditors.TextEdit();
-            this.btnLogin = new DevExpress.XtraEditors.SimpleButton();
-            this.btnCancel = new DevExpress.XtraEditors.SimpleButton();
-            this.lblVersion = new DevExpress.XtraEditors.LabelControl();
-            this.picLogo = new DevExpress.XtraEditors.PictureEdit();
-            this.lblDatabase = new DevExpress.XtraEditors.LabelControl();
-            this.cboDatabases = new DevExpress.XtraEditors.ComboBoxEdit();
-            this.btnSettings = new DevExpress.XtraEditors.SimpleButton();
-            this.panelControl1 = new DevExpress.XtraEditors.PanelControl();
-            this.btnForgotPassword = new DevExpress.XtraEditors.HyperlinkLabelControl();
-            ((System.ComponentModel.ISupportInitialize)(this.txtUsername.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtPassword.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.picLogo.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.cboDatabases.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.panelControl1)).BeginInit();
-            this.panelControl1.SuspendLayout();
+            this.textEditUsername = new DevExpress.XtraEditors.TextEdit();
+            this.textEditPassword = new DevExpress.XtraEditors.TextEdit();
+            this.buttonLogin = new DevExpress.XtraEditors.SimpleButton();
+            this.buttonCancel = new DevExpress.XtraEditors.SimpleButton();
+            this.linkLabelForgotPassword = new DevExpress.XtraEditors.HyperlinkLabelControl();
+            this.labelVersion = new DevExpress.XtraEditors.LabelControl();
+            this.labelComputer = new DevExpress.XtraEditors.LabelControl();
+            this.panelTop = new DevExpress.XtraEditors.PanelControl();
+            this.panelContent = new DevExpress.XtraEditors.PanelControl();
+            this.checkRememberMe = new DevExpress.XtraEditors.CheckEdit();
+            this.separatorControl1 = new DevExpress.XtraEditors.SeparatorControl();
+            this.toggleSwitchShowPassword = new DevExpress.XtraEditors.ToggleSwitch();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureEditLogo.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditUsername.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditPassword.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.panelTop)).BeginInit();
+            this.panelTop.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.panelContent)).BeginInit();
+            this.panelContent.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.checkRememberMe.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.separatorControl1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.toggleSwitchShowPassword.Properties)).BeginInit();
             this.SuspendLayout();
+            // 
+            // pictureEditLogo
+            // 
+            this.pictureEditLogo.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.pictureEditLogo.EditValue = ((object)(resources.GetObject("pictureEditLogo.EditValue")));
+            this.pictureEditLogo.Location = new System.Drawing.Point(157, 12);
+            this.pictureEditLogo.Name = "pictureEditLogo";
+            this.pictureEditLogo.Properties.AllowFocused = false;
+            this.pictureEditLogo.Properties.Appearance.BackColor = System.Drawing.Color.Transparent;
+            this.pictureEditLogo.Properties.Appearance.Options.UseBackColor = true;
+            this.pictureEditLogo.Properties.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+            this.pictureEditLogo.Properties.ShowCameraMenuItem = DevExpress.XtraEditors.Controls.CameraMenuItemVisibility.Auto;
+            this.pictureEditLogo.Properties.ShowMenu = false;
+            this.pictureEditLogo.Properties.SizeMode = DevExpress.XtraEditors.Controls.PictureSizeMode.Zoom;
+            this.pictureEditLogo.Size = new System.Drawing.Size(150, 100);
+            this.pictureEditLogo.TabIndex = 0;
+            // 
+            // labelCompanyName
+            // 
+            this.labelCompanyName.Anchor = System.Windows.Forms.AnchorStyles.None;
+            this.labelCompanyName.Appearance.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
+            this.labelCompanyName.Appearance.ForeColor = System.Drawing.Color.White;
+            this.labelCompanyName.Appearance.Options.UseFont = true;
+            this.labelCompanyName.Appearance.Options.UseForeColor = true;
+            this.labelCompanyName.Appearance.Options.UseTextOptions = true;
+            this.labelCompanyName.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
+            this.labelCompanyName.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
+            this.labelCompanyName.Location = new System.Drawing.Point(12, 118);
+            this.labelCompanyName.Name = "labelCompanyName";
+            this.labelCompanyName.Size = new System.Drawing.Size(440, 22);
+            this.labelCompanyName.TabIndex = 1;
+            this.labelCompanyName.Text = "نظام إدارة الموارد البشرية";
             // 
             // labelControl1
             // 
-            this.labelControl1.Appearance.Font = new System.Drawing.Font("Tahoma", 14F, System.Drawing.FontStyle.Bold);
+            this.labelControl1.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             this.labelControl1.Appearance.Options.UseFont = true;
-            this.labelControl1.Appearance.Options.UseTextOptions = true;
-            this.labelControl1.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-            this.labelControl1.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
-            this.labelControl1.Dock = System.Windows.Forms.DockStyle.Top;
-            this.labelControl1.Location = new System.Drawing.Point(0, 0);
+            this.labelControl1.Location = new System.Drawing.Point(18, 18);
             this.labelControl1.Name = "labelControl1";
-            this.labelControl1.Size = new System.Drawing.Size(384, 27);
-            this.labelControl1.TabIndex = 0;
-            this.labelControl1.Text = "نظام إدارة الموارد البشرية";
+            this.labelControl1.Size = new System.Drawing.Size(71, 17);
+            this.labelControl1.TabIndex = 2;
+            this.labelControl1.Text = "اسم المستخدم:";
             // 
             // labelControl2
             // 
-            this.labelControl2.Appearance.Font = new System.Drawing.Font("Tahoma", 9F);
+            this.labelControl2.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.75F);
             this.labelControl2.Appearance.Options.UseFont = true;
-            this.labelControl2.Appearance.Options.UseTextOptions = true;
-            this.labelControl2.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-            this.labelControl2.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
-            this.labelControl2.Dock = System.Windows.Forms.DockStyle.Top;
-            this.labelControl2.Location = new System.Drawing.Point(0, 27);
+            this.labelControl2.Location = new System.Drawing.Point(18, 52);
             this.labelControl2.Name = "labelControl2";
-            this.labelControl2.Size = new System.Drawing.Size(384, 23);
-            this.labelControl2.TabIndex = 1;
-            this.labelControl2.Text = "تسجيل الدخول إلى النظام";
+            this.labelControl2.Size = new System.Drawing.Size(63, 17);
+            this.labelControl2.TabIndex = 3;
+            this.labelControl2.Text = "كلمة المرور:";
             // 
-            // lblUsername
+            // textEditUsername
             // 
-            this.lblUsername.Location = new System.Drawing.Point(12, 176);
-            this.lblUsername.Name = "lblUsername";
-            this.lblUsername.Size = new System.Drawing.Size(80, 13);
-            this.lblUsername.TabIndex = 3;
-            this.lblUsername.Text = "اسم المستخدم:";
+            this.textEditUsername.Location = new System.Drawing.Point(95, 15);
+            this.textEditUsername.Name = "textEditUsername";
+            this.textEditUsername.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.textEditUsername.Properties.Appearance.Options.UseFont = true;
+            this.textEditUsername.Properties.NullText = "أدخل اسم المستخدم";
+            this.textEditUsername.Size = new System.Drawing.Size(327, 24);
+            this.textEditUsername.TabIndex = 0;
             // 
-            // lblPassword
+            // textEditPassword
             // 
-            this.lblPassword.Location = new System.Drawing.Point(12, 202);
-            this.lblPassword.Name = "lblPassword";
-            this.lblPassword.Size = new System.Drawing.Size(57, 13);
-            this.lblPassword.TabIndex = 4;
-            this.lblPassword.Text = "كلمة المرور:";
+            this.textEditPassword.Location = new System.Drawing.Point(95, 49);
+            this.textEditPassword.Name = "textEditPassword";
+            this.textEditPassword.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.textEditPassword.Properties.Appearance.Options.UseFont = true;
+            this.textEditPassword.Properties.NullText = "أدخل كلمة المرور";
+            this.textEditPassword.Properties.UseSystemPasswordChar = true;
+            this.textEditPassword.Size = new System.Drawing.Size(293, 24);
+            this.textEditPassword.TabIndex = 1;
             // 
-            // txtUsername
+            // buttonLogin
             // 
-            this.txtUsername.Location = new System.Drawing.Point(98, 173);
-            this.txtUsername.Name = "txtUsername";
-            this.txtUsername.Size = new System.Drawing.Size(255, 20);
-            this.txtUsername.TabIndex = 0;
+            this.buttonLogin.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.buttonLogin.Appearance.Options.UseFont = true;
+            this.buttonLogin.ImageOptions.ImageToTextAlignment = DevExpress.XtraEditors.ImageAlignToText.LeftCenter;
+            this.buttonLogin.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("buttonLogin.ImageOptions.SvgImage")));
+            this.buttonLogin.Location = new System.Drawing.Point(222, 130);
+            this.buttonLogin.Name = "buttonLogin";
+            this.buttonLogin.Size = new System.Drawing.Size(200, 32);
+            this.buttonLogin.TabIndex = 3;
+            this.buttonLogin.Text = "تسجيل الدخول";
             // 
-            // txtPassword
+            // buttonCancel
             // 
-            this.txtPassword.Location = new System.Drawing.Point(98, 199);
-            this.txtPassword.Name = "txtPassword";
-            this.txtPassword.Properties.PasswordChar = '*';
-            this.txtPassword.Size = new System.Drawing.Size(255, 20);
-            this.txtPassword.TabIndex = 1;
+            this.buttonCancel.Appearance.Font = new System.Drawing.Font("Segoe UI", 9.75F);
+            this.buttonCancel.Appearance.Options.UseFont = true;
+            this.buttonCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            this.buttonCancel.ImageOptions.ImageToTextAlignment = DevExpress.XtraEditors.ImageAlignToText.LeftCenter;
+            this.buttonCancel.ImageOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("buttonCancel.ImageOptions.SvgImage")));
+            this.buttonCancel.Location = new System.Drawing.Point(18, 130);
+            this.buttonCancel.Name = "buttonCancel";
+            this.buttonCancel.Size = new System.Drawing.Size(198, 32);
+            this.buttonCancel.TabIndex = 4;
+            this.buttonCancel.Text = "إلغاء";
             // 
-            // btnLogin
+            // linkLabelForgotPassword
             // 
-            this.btnLogin.Appearance.Font = new System.Drawing.Font("Tahoma", 8.25F, System.Drawing.FontStyle.Bold);
-            this.btnLogin.Appearance.Options.UseFont = true;
-            this.btnLogin.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("btnLogin.ImageOptions.Image")));
-            this.btnLogin.Location = new System.Drawing.Point(259, 251);
-            this.btnLogin.Name = "btnLogin";
-            this.btnLogin.Size = new System.Drawing.Size(94, 31);
-            this.btnLogin.TabIndex = 3;
-            this.btnLogin.Text = "دخول";
-            this.btnLogin.Click += new System.EventHandler(this.btnLogin_Click);
+            this.linkLabelForgotPassword.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.linkLabelForgotPassword.Appearance.Options.UseFont = true;
+            this.linkLabelForgotPassword.Location = new System.Drawing.Point(18, 168);
+            this.linkLabelForgotPassword.Name = "linkLabelForgotPassword";
+            this.linkLabelForgotPassword.Size = new System.Drawing.Size(92, 15);
+            this.linkLabelForgotPassword.TabIndex = 5;
+            this.linkLabelForgotPassword.Text = "نسيت كلمة المرور؟";
             // 
-            // btnCancel
+            // labelVersion
             // 
-            this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("btnCancel.ImageOptions.Image")));
-            this.btnCancel.Location = new System.Drawing.Point(159, 251);
-            this.btnCancel.Name = "btnCancel";
-            this.btnCancel.Size = new System.Drawing.Size(94, 31);
-            this.btnCancel.TabIndex = 4;
-            this.btnCancel.Text = "إلغاء";
-            this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
+            this.labelVersion.Appearance.Font = new System.Drawing.Font("Segoe UI", 8.25F);
+            this.labelVersion.Appearance.ForeColor = System.Drawing.Color.Gray;
+            this.labelVersion.Appearance.Options.UseFont = true;
+            this.labelVersion.Appearance.Options.UseForeColor = true;
+            this.labelVersion.Location = new System.Drawing.Point(18, 409);
+            this.labelVersion.Name = "labelVersion";
+            this.labelVersion.Size = new System.Drawing.Size(50, 13);
+            this.labelVersion.TabIndex = 9;
+            this.labelVersion.Text = "الإصدار 1.0";
             // 
-            // lblVersion
+            // labelComputer
             // 
-            this.lblVersion.Appearance.Font = new System.Drawing.Font("Tahoma", 8F);
-            this.lblVersion.Appearance.ForeColor = System.Drawing.Color.Gray;
-            this.lblVersion.Appearance.Options.UseFont = true;
-            this.lblVersion.Appearance.Options.UseForeColor = true;
-            this.lblVersion.Appearance.Options.UseTextOptions = true;
-            this.lblVersion.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Center;
-            this.lblVersion.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
-            this.lblVersion.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.lblVersion.Location = new System.Drawing.Point(0, 292);
-            this.lblVersion.Name = "lblVersion";
-            this.lblVersion.Size = new System.Drawing.Size(384, 19);
-            this.lblVersion.TabIndex = 8;
-            this.lblVersion.Text = "الإصدار 1.0.0";
+            this.labelComputer.Appearance.Font = new System.Drawing.Font("Segoe UI", 8.25F);
+            this.labelComputer.Appearance.ForeColor = System.Drawing.Color.Gray;
+            this.labelComputer.Appearance.Options.UseFont = true;
+            this.labelComputer.Appearance.Options.UseForeColor = true;
+            this.labelComputer.Appearance.Options.UseTextOptions = true;
+            this.labelComputer.Appearance.TextOptions.HAlignment = DevExpress.Utils.HorzAlignment.Far;
+            this.labelComputer.AutoSizeMode = DevExpress.XtraEditors.LabelAutoSizeMode.None;
+            this.labelComputer.Location = new System.Drawing.Point(278, 409);
+            this.labelComputer.Name = "labelComputer";
+            this.labelComputer.Size = new System.Drawing.Size(174, 13);
+            this.labelComputer.TabIndex = 10;
+            this.labelComputer.Text = "اسم الجهاز: COMPUTER";
             // 
-            // picLogo
+            // panelTop
             // 
-            this.picLogo.EditValue = ((object)(resources.GetObject("picLogo.EditValue")));
-            this.picLogo.Location = new System.Drawing.Point(152, 56);
-            this.picLogo.Name = "picLogo";
-            this.picLogo.Properties.AllowFocused = false;
-            this.picLogo.Properties.Appearance.BackColor = System.Drawing.Color.Transparent;
-            this.picLogo.Properties.Appearance.Options.UseBackColor = true;
-            this.picLogo.Properties.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
-            this.picLogo.Properties.ShowCameraMenuItem = DevExpress.XtraEditors.Controls.CameraMenuItemVisibility.Auto;
-            this.picLogo.Properties.SizeMode = DevExpress.XtraEditors.Controls.PictureSizeMode.Zoom;
-            this.picLogo.Size = new System.Drawing.Size(80, 80);
-            this.picLogo.TabIndex = 2;
+            this.panelTop.Appearance.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(99)))), ((int)(((byte)(177)))));
+            this.panelTop.Appearance.Options.UseBackColor = true;
+            this.panelTop.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+            this.panelTop.Controls.Add(this.pictureEditLogo);
+            this.panelTop.Controls.Add(this.labelCompanyName);
+            this.panelTop.Dock = System.Windows.Forms.DockStyle.Top;
+            this.panelTop.Location = new System.Drawing.Point(0, 0);
+            this.panelTop.Name = "panelTop";
+            this.panelTop.Size = new System.Drawing.Size(464, 160);
+            this.panelTop.TabIndex = 11;
             // 
-            // lblDatabase
+            // panelContent
             // 
-            this.lblDatabase.Location = new System.Drawing.Point(12, 228);
-            this.lblDatabase.Name = "lblDatabase";
-            this.lblDatabase.Size = new System.Drawing.Size(71, 13);
-            this.lblDatabase.TabIndex = 10;
-            this.lblDatabase.Text = "قاعدة البيانات:";
+            this.panelContent.Appearance.BackColor = System.Drawing.Color.White;
+            this.panelContent.Appearance.Options.UseBackColor = true;
+            this.panelContent.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+            this.panelContent.Controls.Add(this.checkRememberMe);
+            this.panelContent.Controls.Add(this.separatorControl1);
+            this.panelContent.Controls.Add(this.toggleSwitchShowPassword);
+            this.panelContent.Controls.Add(this.labelControl1);
+            this.panelContent.Controls.Add(this.labelControl2);
+            this.panelContent.Controls.Add(this.textEditUsername);
+            this.panelContent.Controls.Add(this.textEditPassword);
+            this.panelContent.Controls.Add(this.buttonLogin);
+            this.panelContent.Controls.Add(this.buttonCancel);
+            this.panelContent.Controls.Add(this.linkLabelForgotPassword);
+            this.panelContent.Location = new System.Drawing.Point(12, 186);
+            this.panelContent.Name = "panelContent";
+            this.panelContent.Size = new System.Drawing.Size(440, 200);
+            this.panelContent.TabIndex = 12;
             // 
-            // cboDatabases
+            // checkRememberMe
             // 
-            this.cboDatabases.Location = new System.Drawing.Point(98, 225);
-            this.cboDatabases.Name = "cboDatabases";
-            this.cboDatabases.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
-            new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
-            this.cboDatabases.Size = new System.Drawing.Size(255, 20);
-            this.cboDatabases.TabIndex = 2;
+            this.checkRememberMe.Location = new System.Drawing.Point(95, 79);
+            this.checkRememberMe.Name = "checkRememberMe";
+            this.checkRememberMe.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.checkRememberMe.Properties.Appearance.Options.UseFont = true;
+            this.checkRememberMe.Properties.Caption = "تذكر بيانات الدخول";
+            this.checkRememberMe.Properties.GlyphAlignment = DevExpress.Utils.HorzAlignment.Far;
+            this.checkRememberMe.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.checkRememberMe.Size = new System.Drawing.Size(129, 19);
+            this.checkRememberMe.TabIndex = 2;
             // 
-            // btnSettings
+            // separatorControl1
             // 
-            this.btnSettings.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("btnSettings.ImageOptions.Image")));
-            this.btnSettings.ImageOptions.ImageToTextAlignment = DevExpress.XtraEditors.ImageAlignToText.LeftCenter;
-            this.btnSettings.Location = new System.Drawing.Point(12, 251);
-            this.btnSettings.Name = "btnSettings";
-            this.btnSettings.Size = new System.Drawing.Size(92, 31);
-            this.btnSettings.TabIndex = 5;
-            this.btnSettings.Text = "الإعدادات";
-            this.btnSettings.Click += new System.EventHandler(this.btnSettings_Click);
+            this.separatorControl1.Location = new System.Drawing.Point(18, 104);
+            this.separatorControl1.Name = "separatorControl1";
+            this.separatorControl1.Size = new System.Drawing.Size(404, 20);
+            this.separatorControl1.TabIndex = 13;
             // 
-            // panelControl1
+            // toggleSwitchShowPassword
             // 
-            this.panelControl1.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
-            this.panelControl1.Controls.Add(this.btnForgotPassword);
-            this.panelControl1.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelControl1.Location = new System.Drawing.Point(0, 311);
-            this.panelControl1.Name = "panelControl1";
-            this.panelControl1.Size = new System.Drawing.Size(384, 24);
-            this.panelControl1.TabIndex = 13;
-            // 
-            // btnForgotPassword
-            // 
-            this.btnForgotPassword.Appearance.Font = new System.Drawing.Font("Tahoma", 8.25F, System.Drawing.FontStyle.Underline);
-            this.btnForgotPassword.Appearance.Options.UseFont = true;
-            this.btnForgotPassword.Cursor = System.Windows.Forms.Cursors.Hand;
-            this.btnForgotPassword.Dock = System.Windows.Forms.DockStyle.Right;
-            this.btnForgotPassword.Location = new System.Drawing.Point(288, 0);
-            this.btnForgotPassword.Name = "btnForgotPassword";
-            this.btnForgotPassword.Size = new System.Drawing.Size(96, 24);
-            this.btnForgotPassword.TabIndex = 0;
-            this.btnForgotPassword.Text = "نسيت كلمة المرور؟";
-            this.btnForgotPassword.Click += new System.EventHandler(this.btnForgotPassword_Click);
+            this.toggleSwitchShowPassword.Location = new System.Drawing.Point(394, 51);
+            this.toggleSwitchShowPassword.Name = "toggleSwitchShowPassword";
+            this.toggleSwitchShowPassword.Properties.Appearance.Font = new System.Drawing.Font("Segoe UI", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.toggleSwitchShowPassword.Properties.Appearance.Options.UseFont = true;
+            this.toggleSwitchShowPassword.Properties.AutoWidth = true;
+            this.toggleSwitchShowPassword.Properties.GlyphAlignment = DevExpress.Utils.HorzAlignment.Far;
+            this.toggleSwitchShowPassword.Properties.OffText = "إظهار";
+            this.toggleSwitchShowPassword.Properties.OnText = "إخفاء";
+            this.toggleSwitchShowPassword.RightToLeft = System.Windows.Forms.RightToLeft.No;
+            this.toggleSwitchShowPassword.Size = new System.Drawing.Size(82, 20);
+            this.toggleSwitchShowPassword.TabIndex = 6;
             // 
             // LoginForm
             // 
-            this.AcceptButton = this.btnLogin;
+            this.AcceptButton = this.buttonLogin;
+            this.Appearance.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(240)))), ((int)(((byte)(240)))), ((int)(((byte)(240)))));
+            this.Appearance.Options.UseBackColor = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(384, 335);
-            this.Controls.Add(this.panelControl1);
-            this.Controls.Add(this.btnSettings);
-            this.Controls.Add(this.cboDatabases);
-            this.Controls.Add(this.lblDatabase);
-            this.Controls.Add(this.lblVersion);
-            this.Controls.Add(this.btnCancel);
-            this.Controls.Add(this.btnLogin);
-            this.Controls.Add(this.txtPassword);
-            this.Controls.Add(this.txtUsername);
-            this.Controls.Add(this.lblPassword);
-            this.Controls.Add(this.lblUsername);
-            this.Controls.Add(this.picLogo);
-            this.Controls.Add(this.labelControl2);
-            this.Controls.Add(this.labelControl1);
+            this.CancelButton = this.buttonCancel;
+            this.ClientSize = new System.Drawing.Size(464, 434);
+            this.Controls.Add(this.panelContent);
+            this.Controls.Add(this.panelTop);
+            this.Controls.Add(this.labelComputer);
+            this.Controls.Add(this.labelVersion);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.IconOptions.SvgImage = ((DevExpress.Utils.Svg.SvgImage)(resources.GetObject("LoginForm.IconOptions.SvgImage")));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "LoginForm";
@@ -244,14 +280,17 @@ namespace HR.UI.Forms
             this.RightToLeftLayout = true;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "تسجيل الدخول";
-            this.Load += new System.EventHandler(this.LoginForm_Load);
-            ((System.ComponentModel.ISupportInitialize)(this.txtUsername.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtPassword.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.picLogo.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.cboDatabases.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.panelControl1)).EndInit();
-            this.panelControl1.ResumeLayout(false);
-            this.panelControl1.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.pictureEditLogo.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditUsername.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditPassword.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.panelTop)).EndInit();
+            this.panelTop.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.panelContent)).EndInit();
+            this.panelContent.ResumeLayout(false);
+            this.panelContent.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.checkRememberMe.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.separatorControl1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.toggleSwitchShowPassword.Properties)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -259,20 +298,21 @@ namespace HR.UI.Forms
 
         #endregion
 
+        private DevExpress.XtraEditors.PictureEdit pictureEditLogo;
+        private DevExpress.XtraEditors.LabelControl labelCompanyName;
         private DevExpress.XtraEditors.LabelControl labelControl1;
         private DevExpress.XtraEditors.LabelControl labelControl2;
-        private DevExpress.XtraEditors.PictureEdit picLogo;
-        private DevExpress.XtraEditors.LabelControl lblUsername;
-        private DevExpress.XtraEditors.LabelControl lblPassword;
-        private DevExpress.XtraEditors.TextEdit txtUsername;
-        private DevExpress.XtraEditors.TextEdit txtPassword;
-        private DevExpress.XtraEditors.SimpleButton btnLogin;
-        private DevExpress.XtraEditors.SimpleButton btnCancel;
-        private DevExpress.XtraEditors.LabelControl lblVersion;
-        private DevExpress.XtraEditors.LabelControl lblDatabase;
-        private DevExpress.XtraEditors.ComboBoxEdit cboDatabases;
-        private DevExpress.XtraEditors.SimpleButton btnSettings;
-        private DevExpress.XtraEditors.PanelControl panelControl1;
-        private DevExpress.XtraEditors.HyperlinkLabelControl btnForgotPassword;
+        private DevExpress.XtraEditors.TextEdit textEditUsername;
+        private DevExpress.XtraEditors.TextEdit textEditPassword;
+        private DevExpress.XtraEditors.SimpleButton buttonLogin;
+        private DevExpress.XtraEditors.SimpleButton buttonCancel;
+        private DevExpress.XtraEditors.HyperlinkLabelControl linkLabelForgotPassword;
+        private DevExpress.XtraEditors.LabelControl labelVersion;
+        private DevExpress.XtraEditors.LabelControl labelComputer;
+        private DevExpress.XtraEditors.PanelControl panelTop;
+        private DevExpress.XtraEditors.PanelControl panelContent;
+        private DevExpress.XtraEditors.CheckEdit checkRememberMe;
+        private DevExpress.XtraEditors.SeparatorControl separatorControl1;
+        private DevExpress.XtraEditors.ToggleSwitch toggleSwitchShowPassword;
     }
 }
