@@ -1,80 +1,77 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Text;
-using System.Threading;
 
 namespace HR.Core
 {
     /// <summary>
-    /// مدير السجلات والتقارير
+    /// مدير التسجيل (Logger) المسؤول عن تسجيل الأحداث والأخطاء في النظام
     /// </summary>
-    public class LogManager
+    public static class LogManager
     {
-        private static ReaderWriterLockSlim _readWriteLock = new ReaderWriterLockSlim();
-        private static string _logPath;
-        private static bool _isInitialized = false;
-
+        private static readonly object lockObject = new object();
+        private static readonly string LogDirectory = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "Logs");
+        private static readonly string ErrorLogFile = Path.Combine(LogDirectory, "Error.log");
+        private static readonly string WarningLogFile = Path.Combine(LogDirectory, "Warning.log");
+        private static readonly string InfoLogFile = Path.Combine(LogDirectory, "Info.log");
+        private static readonly string AuditLogFile = Path.Combine(LogDirectory, "Audit.log");
+        
         /// <summary>
-        /// تهيئة مدير السجلات
+        /// مستويات التسجيل
+        /// </summary>
+        public enum LogLevel
+        {
+            Info,
+            Warning,
+            Error,
+            Audit
+        }
+        
+        /// <summary>
+        /// تهيئة مدير التسجيل
         /// </summary>
         public static void Initialize()
         {
-            try
+            // إنشاء مجلد السجلات إذا لم يكن موجودًا
+            if (!Directory.Exists(LogDirectory))
             {
-                string basePath = AppDomain.CurrentDomain.BaseDirectory;
-                string logDirectory = Path.Combine(basePath, "Logs");
-                
-                // إنشاء مجلد السجلات إذا لم يكن موجودا
-                if (!Directory.Exists(logDirectory))
-                {
-                    Directory.CreateDirectory(logDirectory);
-                }
-                
-                // تحديد مسار ملف السجل
-                _logPath = Path.Combine(logDirectory, $"HRSystem_{DateTime.Now:yyyy-MM-dd}.log");
-                _isInitialized = true;
-                
-                LogInfo("تم تهيئة مدير السجلات بنجاح");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"فشل تهيئة مدير السجلات: {ex.Message}");
-                _isInitialized = false;
+                Directory.CreateDirectory(LogDirectory);
             }
         }
-
+        
         /// <summary>
         /// تسجيل معلومة
         /// </summary>
-        /// <param name="message">نص المعلومة</param>
+        /// <param name="message">الرسالة</param>
         public static void LogInfo(string message)
         {
-            Log("INFO", message);
+            Log(LogLevel.Info, message);
         }
-
+        
         /// <summary>
         /// تسجيل تحذير
         /// </summary>
-        /// <param name="message">نص التحذير</param>
+        /// <param name="message">الرسالة</param>
         public static void LogWarning(string message)
         {
-            Log("WARNING", message);
+            Log(LogLevel.Warning, message);
         }
-
+        
         /// <summary>
         /// تسجيل خطأ
         /// </summary>
-        /// <param name="message">نص الخطأ</param>
+        /// <param name="message">الرسالة</param>
         public static void LogError(string message)
         {
-            Log("ERROR", message);
+            Log(LogLevel.Error, message);
         }
-
+        
         /// <summary>
         /// تسجيل استثناء
         /// </summary>
         /// <param name="ex">الاستثناء</param>
-        /// <param name="message">رسالة إضافية</param>
+        /// <param name="message">رسالة إضافية (اختياري)</param>
         public static void LogException(Exception ex, string message = null)
         {
             StringBuilder sb = new StringBuilder();
@@ -82,133 +79,136 @@ namespace HR.Core
             if (!string.IsNullOrEmpty(message))
             {
                 sb.AppendLine(message);
+                sb.AppendLine("---");
             }
             
-            sb.AppendLine($"استثناء: {ex.Message}");
-            sb.AppendLine($"المصدر: {ex.Source}");
-            sb.AppendLine($"تفاصيل: {ex.StackTrace}");
+            sb.AppendLine($"Exception Type: {ex.GetType().FullName}");
+            sb.AppendLine($"Message: {ex.Message}");
+            sb.AppendLine($"Stack Trace: {ex.StackTrace}");
             
             if (ex.InnerException != null)
             {
-                sb.AppendLine($"استثناء داخلي: {ex.InnerException.Message}");
-                sb.AppendLine($"تفاصيل الاستثناء الداخلي: {ex.InnerException.StackTrace}");
+                sb.AppendLine("--- Inner Exception ---");
+                sb.AppendLine($"Type: {ex.InnerException.GetType().FullName}");
+                sb.AppendLine($"Message: {ex.InnerException.Message}");
+                sb.AppendLine($"Stack Trace: {ex.InnerException.StackTrace}");
             }
             
-            Log("EXCEPTION", sb.ToString());
+            Log(LogLevel.Error, sb.ToString());
         }
-
+        
         /// <summary>
-        /// تسجيل نشاط المستخدم
+        /// تسجيل إجراء (Audit)
         /// </summary>
+        /// <param name="action">الإجراء</param>
+        /// <param name="entityType">نوع الكيان</param>
+        /// <param name="entityId">معرف الكيان</param>
         /// <param name="userId">معرف المستخدم</param>
-        /// <param name="activity">النشاط</param>
-        /// <param name="details">تفاصيل إضافية</param>
-        public static void LogUserActivity(int userId, string activity, string details = null)
+        /// <param name="additionalInfo">معلومات إضافية (اختياري)</param>
+        public static void LogAudit(string action, string entityType, string entityId, int userId, string additionalInfo = null)
         {
-            string message = $"المستخدم (ID: {userId}) - {activity}";
+            StringBuilder sb = new StringBuilder();
             
-            if (!string.IsNullOrEmpty(details))
+            sb.AppendLine($"Action: {action}");
+            sb.AppendLine($"Entity Type: {entityType}");
+            sb.AppendLine($"Entity ID: {entityId}");
+            sb.AppendLine($"User ID: {userId}");
+            
+            if (!string.IsNullOrEmpty(additionalInfo))
             {
-                message += $" - {details}";
+                sb.AppendLine($"Additional Info: {additionalInfo}");
             }
             
-            Log("USER_ACTIVITY", message);
+            Log(LogLevel.Audit, sb.ToString());
         }
-
+        
         /// <summary>
-        /// تسجيل محاولة تسجيل دخول
+        /// تسجيل بمستوى محدد
         /// </summary>
-        /// <param name="username">اسم المستخدم</param>
-        /// <param name="success">نجاح العملية</param>
-        /// <param name="ipAddress">عنوان IP</param>
-        public static void LogLogin(string username, bool success, string ipAddress)
-        {
-            string status = success ? "ناجح" : "فاشل";
-            string message = $"محاولة تسجيل دخول {status} - المستخدم: {username} - IP: {ipAddress}";
-            Log("LOGIN", message);
-        }
-
-        /// <summary>
-        /// كتابة السجل
-        /// </summary>
-        /// <param name="level">مستوى السجل</param>
-        /// <param name="message">نص السجل</param>
-        private static void Log(string level, string message)
+        /// <param name="level">مستوى التسجيل</param>
+        /// <param name="message">الرسالة</param>
+        private static void Log(LogLevel level, string message)
         {
             try
             {
-                if (!_isInitialized)
+                if (string.IsNullOrEmpty(message))
+                    return;
+                
+                Initialize();
+                
+                string logFile = GetLogFile(level);
+                
+                lock (lockObject)
                 {
-                    Initialize();
-                }
-
-                // تنسيق مدخل السجل
-                string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} [{level}] {message}";
-
-                // كتابة السجل بطريقة آمنة لتعدد المستخدمين
-                _readWriteLock.EnterWriteLock();
-                try
-                {
-                    using (StreamWriter writer = new StreamWriter(_logPath, true, Encoding.UTF8))
+                    StringBuilder logEntry = new StringBuilder();
+                    logEntry.Append($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] ");
+                    
+                    if (SessionManager.CurrentUser != null)
                     {
-                        writer.WriteLine(logEntry);
+                        logEntry.Append($"[User: {SessionManager.CurrentUser.ID}] ");
                     }
+                    
+                    logEntry.AppendLine(message);
+                    logEntry.AppendLine("----------------------------------------");
+                    
+                    File.AppendAllText(logFile, logEntry.ToString());
                 }
-                finally
+            }
+            catch
+            {
+                // لا نريد أن يؤدي فشل التسجيل إلى تعطيل التطبيق
+            }
+        }
+        
+        /// <summary>
+        /// الحصول على ملف السجل المناسب للمستوى
+        /// </summary>
+        /// <param name="level">مستوى التسجيل</param>
+        /// <returns>مسار الملف</returns>
+        private static string GetLogFile(LogLevel level)
+        {
+            switch (level)
+            {
+                case LogLevel.Info:
+                    return InfoLogFile;
+                case LogLevel.Warning:
+                    return WarningLogFile;
+                case LogLevel.Error:
+                    return ErrorLogFile;
+                case LogLevel.Audit:
+                    return AuditLogFile;
+                default:
+                    return InfoLogFile;
+            }
+        }
+        
+        /// <summary>
+        /// تنظيف السجلات القديمة (مثلاً السجلات الأقدم من شهر)
+        /// </summary>
+        /// <param name="olderThanDays">عدد الأيام</param>
+        public static void CleanupOldLogs(int olderThanDays = 30)
+        {
+            try
+            {
+                Initialize();
+                
+                DateTime cutoffDate = DateTime.Now.AddDays(-olderThanDays);
+                
+                DirectoryInfo dirInfo = new DirectoryInfo(LogDirectory);
+                
+                foreach (FileInfo file in dirInfo.GetFiles("*.log"))
                 {
-                    _readWriteLock.ExitWriteLock();
+                    if (file.LastWriteTime < cutoffDate)
+                    {
+                        file.Delete();
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"فشل في كتابة السجل: {ex.Message}");
+                // لا يمكننا استخدام LogException هنا لتجنب التكرار
+                Console.WriteLine($"Error cleaning up logs: {ex.Message}");
             }
-        }
-
-        /// <summary>
-        /// الحصول على سجلات اليوم
-        /// </summary>
-        /// <returns>نص السجلات</returns>
-        public static string GetTodaysLogs()
-        {
-            if (!_isInitialized)
-            {
-                Initialize();
-            }
-
-            if (!File.Exists(_logPath))
-            {
-                return "لا توجد سجلات لهذا اليوم.";
-            }
-
-            _readWriteLock.EnterReadLock();
-            try
-            {
-                return File.ReadAllText(_logPath, Encoding.UTF8);
-            }
-            finally
-            {
-                _readWriteLock.ExitReadLock();
-            }
-        }
-
-        /// <summary>
-        /// الحصول على سجلات يوم معين
-        /// </summary>
-        /// <param name="date">التاريخ</param>
-        /// <returns>نص السجلات</returns>
-        public static string GetLogsByDate(DateTime date)
-        {
-            string logFile = Path.Combine(
-                Path.GetDirectoryName(_logPath), 
-                $"HRSystem_{date:yyyy-MM-dd}.log");
-
-            if (!File.Exists(logFile))
-            {
-                return $"لا توجد سجلات لتاريخ {date:yyyy-MM-dd}.";
-            }
-
-            return File.ReadAllText(logFile, Encoding.UTF8);
         }
     }
 }

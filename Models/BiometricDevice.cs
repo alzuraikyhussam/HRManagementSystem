@@ -3,7 +3,7 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج جهاز البصمة - يتوافق مع جدول BiometricDevices في قاعدة البيانات
+    /// كائن يمثل جهاز بصمة
     /// </summary>
     public class BiometricDevice
     {
@@ -11,85 +11,75 @@ namespace HR.Models
         /// معرف الجهاز
         /// </summary>
         public int ID { get; set; }
-
+        
         /// <summary>
         /// اسم الجهاز
         /// </summary>
-        public string Name { get; set; }
-
+        public string DeviceName { get; set; }
+        
         /// <summary>
         /// موديل الجهاز
         /// </summary>
         public string DeviceModel { get; set; }
-
+        
         /// <summary>
         /// الرقم التسلسلي
         /// </summary>
         public string SerialNumber { get; set; }
-
+        
         /// <summary>
-        /// عنوان IP للجهاز
+        /// عنوان IP
         /// </summary>
         public string IPAddress { get; set; }
-
+        
         /// <summary>
-        /// منفذ الاتصال
+        /// المنفذ
         /// </summary>
-        public int Port { get; set; }
-
+        public int? Port { get; set; }
+        
         /// <summary>
-        /// مفتاح الاتصال (للأجهزة المؤمنة)
+        /// مفتاح الاتصال
         /// </summary>
         public string CommunicationKey { get; set; }
-
+        
         /// <summary>
-        /// وصف الجهاز
+        /// الوصف
         /// </summary>
         public string Description { get; set; }
-
+        
         /// <summary>
         /// موقع الجهاز
         /// </summary>
         public string Location { get; set; }
-
+        
         /// <summary>
-        /// حالة الجهاز (نشط/غير نشط)
+        /// حالة التفعيل
         /// </summary>
         public bool IsActive { get; set; }
-
+        
         /// <summary>
-        /// آخر مزامنة للجهاز
+        /// وقت آخر مزامنة
         /// </summary>
         public DateTime? LastSyncTime { get; set; }
-
+        
         /// <summary>
         /// حالة آخر مزامنة
         /// </summary>
         public string LastSyncStatus { get; set; }
-
+        
         /// <summary>
         /// أخطاء آخر مزامنة
         /// </summary>
         public string LastSyncErrors { get; set; }
-
+        
         /// <summary>
         /// تاريخ الإنشاء
         /// </summary>
-        public DateTime? CreatedAt { get; set; }
-
+        public DateTime CreatedAt { get; set; }
+        
         /// <summary>
-        /// منشئ السجل
+        /// معرف المستخدم المنشئ
         /// </summary>
         public int? CreatedBy { get; set; }
-
-        /// <summary>
-        /// تاريخ التعديل
-        /// </summary>
-        public DateTime? UpdatedAt { get; set; }
-
-        /// <summary>
-        /// معدل السجل
-        /// </summary>
-        public int? UpdatedBy { get; set; }
     }
 }

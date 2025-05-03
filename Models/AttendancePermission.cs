@@ -3,12 +3,12 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// كائن يمثل سجل حضور
+    /// كائن يمثل تصريح حضور
     /// </summary>
-    public class AttendanceRecord
+    public class AttendancePermission
     {
         /// <summary>
-        /// معرف السجل
+        /// معرف التصريح
         /// </summary>
         public int ID { get; set; }
         
@@ -28,54 +28,54 @@ namespace HR.Models
         public string DepartmentName { get; set; }
         
         /// <summary>
-        /// تاريخ الحضور
+        /// تاريخ التصريح
         /// </summary>
-        public DateTime AttendanceDate { get; set; }
+        public DateTime PermissionDate { get; set; }
         
         /// <summary>
-        /// وقت الدخول
+        /// نوع التصريح (تأخير صباحي، خروج مبكر، إلخ)
         /// </summary>
-        public DateTime? TimeIn { get; set; }
+        public string PermissionType { get; set; }
         
         /// <summary>
-        /// وقت الخروج
+        /// وقت البداية
         /// </summary>
-        public DateTime? TimeOut { get; set; }
+        public TimeSpan? StartTime { get; set; }
         
         /// <summary>
-        /// معرف جدول العمل
+        /// وقت النهاية
         /// </summary>
-        public int? WorkHoursID { get; set; }
+        public TimeSpan? EndTime { get; set; }
         
         /// <summary>
-        /// دقائق التأخير
+        /// إجمالي الدقائق
         /// </summary>
-        public int LateMinutes { get; set; }
+        public int? TotalMinutes { get; set; }
         
         /// <summary>
-        /// دقائق المغادرة المبكرة
+        /// سبب التصريح
         /// </summary>
-        public int EarlyDepartureMinutes { get; set; }
+        public string Reason { get; set; }
         
         /// <summary>
-        /// دقائق العمل الإضافي
-        /// </summary>
-        public int OvertimeMinutes { get; set; }
-        
-        /// <summary>
-        /// دقائق العمل الفعلي
-        /// </summary>
-        public int WorkedMinutes { get; set; }
-        
-        /// <summary>
-        /// حالة الحضور (حاضر، غائب، متأخر، مغادرة مبكرة، إجازة)
+        /// حالة التصريح (مقدم، معتمد، مرفوض)
         /// </summary>
         public string Status { get; set; }
         
         /// <summary>
-        /// هل تم إدخال السجل يدوياً
+        /// معرف المستخدم المعتمد
         /// </summary>
-        public bool IsManualEntry { get; set; }
+        public int? ApprovedBy { get; set; }
+        
+        /// <summary>
+        /// اسم المستخدم المعتمد (للعرض فقط)
+        /// </summary>
+        public string ApprovedByUser { get; set; }
+        
+        /// <summary>
+        /// تاريخ الاعتماد
+        /// </summary>
+        public DateTime? ApprovalDate { get; set; }
         
         /// <summary>
         /// ملاحظات
@@ -96,5 +96,10 @@ namespace HR.Models
         /// اسم المستخدم المنشئ (للعرض فقط)
         /// </summary>
         public string CreatedByUser { get; set; }
+        
+        /// <summary>
+        /// تاريخ التحديث
+        /// </summary>
+        public DateTime? UpdatedAt { get; set; }
     }
 }

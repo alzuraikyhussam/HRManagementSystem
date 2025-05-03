@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
+using DevExpress.XtraBars;
 using DevExpress.XtraEditors;
-using DevExpress.XtraGrid.Views.Grid;
 using HR.Core;
 using HR.Core.ZKTeco;
 using HR.Models;
@@ -12,390 +14,447 @@ namespace HR.UI.Forms.Attendance
     /// <summary>
     /// نموذج إدارة أجهزة البصمة
     /// </summary>
-    public partial class BiometricDevicesForm : XtraForm
+    public partial class BiometricDevicesForm : DevExpress.XtraBars.Ribbon.RibbonForm
     {
-        private readonly SessionManager _sessionManager;
         private readonly ZKTecoDeviceManager _deviceManager;
-
+        private bool _isSyncing = false;
+        
         /// <summary>
-        /// إنشاء نموذج جديد
+        /// منشئ النموذج
         /// </summary>
         public BiometricDevicesForm()
         {
             InitializeComponent();
-            _sessionManager = SessionManager.Instance;
-            _deviceManager = new ZKTecoDeviceManager();
+            _deviceManager = ZKTecoDeviceManager.Instance;
         }
-
+        
         /// <summary>
         /// حدث تحميل النموذج
         /// </summary>
         private void BiometricDevicesForm_Load(object sender, EventArgs e)
         {
-            // التحقق من صلاحيات المستخدم
-            CheckUserPermissions();
-
-            // تحميل بيانات الأجهزة
             LoadDevices();
         }
-
+        
         /// <summary>
-        /// التحقق من صلاحيات المستخدم
-        /// </summary>
-        private void CheckUserPermissions()
-        {
-            bool canAdd = _sessionManager.HasPermission("الحضور", "add");
-            bool canEdit = _sessionManager.HasPermission("الحضور", "edit");
-            bool canDelete = _sessionManager.HasPermission("الحضور", "delete");
-
-            btnAdd.Enabled = canAdd;
-            btnEdit.Enabled = canEdit;
-            btnDelete.Enabled = canDelete;
-            btnTest.Enabled = canEdit || canAdd;
-            btnSync.Enabled = canEdit;
-        }
-
-        /// <summary>
-        /// تحميل بيانات أجهزة البصمة
+        /// تحميل أجهزة البصمة
         /// </summary>
         private void LoadDevices()
         {
             try
             {
-                var devices = _deviceManager.GetAllDevices();
-                gridDevices.DataSource = devices;
-                gridViewDevices.BestFitColumns();
+                var devices = _deviceManager.GetDevices();
+                biometricDeviceBindingSource.DataSource = devices;
+                gridViewDevices.RefreshData();
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show("حدث خطأ أثناء تحميل بيانات أجهزة البصمة: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LogManager.LogException(ex, "فشل في تحميل أجهزة البصمة");
+                XtraMessageBox.Show("حدث خطأ أثناء تحميل أجهزة البصمة", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
-
-        /// <summary>
-        /// إضافة جهاز بصمة جديد
-        /// </summary>
-        private void AddDevice()
-        {
-            try
-            {
-                using (var deviceForm = new BiometricDeviceForm())
-                {
-                    if (deviceForm.ShowDialog() == DialogResult.OK)
-                    {
-                        LoadDevices();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء إضافة جهاز بصمة جديد: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// تعديل جهاز بصمة موجود
-        /// </summary>
-        private void EditDevice()
-        {
-            try
-            {
-                if (gridViewDevices.FocusedRowHandle < 0)
-                {
-                    XtraMessageBox.Show("الرجاء اختيار جهاز للتعديل", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                var device = gridViewDevices.GetFocusedRow() as BiometricDevice;
-                if (device == null)
-                {
-                    return;
-                }
-
-                using (var deviceForm = new BiometricDeviceForm(device.ID))
-                {
-                    if (deviceForm.ShowDialog() == DialogResult.OK)
-                    {
-                        LoadDevices();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء تعديل جهاز البصمة: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// حذف جهاز بصمة
-        /// </summary>
-        private void DeleteDevice()
-        {
-            try
-            {
-                if (gridViewDevices.FocusedRowHandle < 0)
-                {
-                    XtraMessageBox.Show("الرجاء اختيار جهاز للحذف", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                var device = gridViewDevices.GetFocusedRow() as BiometricDevice;
-                if (device == null)
-                {
-                    return;
-                }
-
-                if (XtraMessageBox.Show($"هل أنت متأكد من حذف الجهاز '{device.DeviceName}'؟", "تأكيد الحذف", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                {
-                    _deviceManager.DeleteDevice(device.ID);
-                    XtraMessageBox.Show("تم حذف الجهاز بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    LoadDevices();
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء حذف جهاز البصمة: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// اختبار الاتصال بجهاز البصمة
-        /// </summary>
-        private void TestConnection()
-        {
-            try
-            {
-                if (gridViewDevices.FocusedRowHandle < 0)
-                {
-                    XtraMessageBox.Show("الرجاء اختيار جهاز لاختبار الاتصال", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                var device = gridViewDevices.GetFocusedRow() as BiometricDevice;
-                if (device == null)
-                {
-                    return;
-                }
-
-                // عرض مؤشر التقدم
-                using (var progressForm = new WaitForm1("جاري اختبار الاتصال..."))
-                {
-                    progressForm.Show();
-                    progressForm.SetDescription("جاري محاولة الاتصال بالجهاز. يرجى الانتظار...");
-
-                    bool result = _deviceManager.TestConnection(device.IPAddress, device.Port);
-
-                    progressForm.Close();
-
-                    if (result)
-                    {
-                        XtraMessageBox.Show($"تم الاتصال بالجهاز '{device.DeviceName}' بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    else
-                    {
-                        XtraMessageBox.Show($"فشل الاتصال بالجهاز '{device.DeviceName}'. يرجى التحقق من عنوان IP والمنفذ والتأكد من أن الجهاز متصل بالشبكة.", "فشل الاتصال", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء اختبار الاتصال: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// مزامنة بيانات جهاز البصمة
-        /// </summary>
-        private void SyncDevice()
-        {
-            try
-            {
-                if (gridViewDevices.FocusedRowHandle < 0)
-                {
-                    XtraMessageBox.Show("الرجاء اختيار جهاز للمزامنة", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    return;
-                }
-
-                var device = gridViewDevices.GetFocusedRow() as BiometricDevice;
-                if (device == null)
-                {
-                    return;
-                }
-
-                // التأكيد قبل المزامنة
-                if (XtraMessageBox.Show($"هل تريد مزامنة بيانات الجهاز '{device.DeviceName}'؟\r\n\r\nستتم مزامنة جميع سجلات الحضور من الجهاز إلى النظام.", "تأكيد المزامنة", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                {
-                    // عرض مؤشر التقدم
-                    using (var progressForm = new WaitForm1("جاري مزامنة البيانات..."))
-                    {
-                        progressForm.Show();
-                        progressForm.SetDescription("جاري مزامنة البيانات من الجهاز. قد تستغرق هذه العملية بعض الوقت...");
-
-                        try
-                        {
-                            // تنفيذ المزامنة
-                            string result = _deviceManager.SynchronizeDevice(device.ID);
-
-                            progressForm.Close();
-
-                            // عرض نتيجة المزامنة
-                            XtraMessageBox.Show(result, "نتيجة المزامنة", MessageBoxButtons.OK, MessageBoxIcon.Information);
-
-                            // إعادة تحميل البيانات
-                            LoadDevices();
-                        }
-                        catch (Exception ex)
-                        {
-                            progressForm.Close();
-                            throw ex;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء مزامنة البيانات: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// معالجة سجلات الحضور غير المعالجة
-        /// </summary>
-        private void ProcessAttendanceRecords()
-        {
-            try
-            {
-                // التأكيد قبل المعالجة
-                if (XtraMessageBox.Show("هل تريد معالجة سجلات الحضور غير المعالجة؟\r\n\r\nسيتم معالجة جميع سجلات البصمة الخام وتحويلها إلى سجلات حضور.", "تأكيد المعالجة", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
-                {
-                    // عرض مؤشر التقدم
-                    using (var progressForm = new WaitForm1("جاري معالجة السجلات..."))
-                    {
-                        progressForm.Show();
-                        progressForm.SetDescription("جاري معالجة سجلات الحضور. قد تستغرق هذه العملية بعض الوقت...");
-
-                        try
-                        {
-                            // تنفيذ المعالجة
-                            int processedCount = _deviceManager.ProcessAttendanceRecords();
-
-                            progressForm.Close();
-
-                            // عرض نتيجة المعالجة
-                            XtraMessageBox.Show($"تمت معالجة {processedCount} سجل بنجاح", "نتيجة المعالجة", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        catch (Exception ex)
-                        {
-                            progressForm.Close();
-                            throw ex;
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء معالجة سجلات الحضور: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// عرض سجلات حضور موظف معين
-        /// </summary>
-        private void ViewEmployeeAttendance()
-        {
-            try
-            {
-                using (var employeeSelector = new EmployeeSelectorForm())
-                {
-                    if (employeeSelector.ShowDialog() == DialogResult.OK && employeeSelector.SelectedEmployeeId > 0)
-                    {
-                        int employeeId = employeeSelector.SelectedEmployeeId;
-                        using (var attendanceForm = new EmployeeAttendanceForm(employeeId))
-                        {
-                            attendanceForm.ShowDialog();
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء عرض سجلات الحضور: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// حدث النقر على زر إضافة جهاز
-        /// </summary>
-        private void btnAdd_Click(object sender, EventArgs e)
-        {
-            AddDevice();
-        }
-
-        /// <summary>
-        /// حدث النقر على زر تعديل جهاز
-        /// </summary>
-        private void btnEdit_Click(object sender, EventArgs e)
-        {
-            EditDevice();
-        }
-
-        /// <summary>
-        /// حدث النقر على زر حذف جهاز
-        /// </summary>
-        private void btnDelete_Click(object sender, EventArgs e)
-        {
-            DeleteDevice();
-        }
-
-        /// <summary>
-        /// حدث النقر على زر اختبار الاتصال
-        /// </summary>
-        private void btnTest_Click(object sender, EventArgs e)
-        {
-            TestConnection();
-        }
-
-        /// <summary>
-        /// حدث النقر على زر المزامنة
-        /// </summary>
-        private void btnSync_Click(object sender, EventArgs e)
-        {
-            SyncDevice();
-        }
-
-        /// <summary>
-        /// حدث النقر على زر معالجة السجلات
-        /// </summary>
-        private void btnProcessRecords_Click(object sender, EventArgs e)
-        {
-            ProcessAttendanceRecords();
-        }
-
-        /// <summary>
-        /// حدث النقر على زر عرض سجلات الحضور
-        /// </summary>
-        private void btnViewAttendance_Click(object sender, EventArgs e)
-        {
-            ViewEmployeeAttendance();
-        }
-
+        
         /// <summary>
         /// حدث النقر على زر التحديث
         /// </summary>
-        private void btnRefresh_Click(object sender, EventArgs e)
+        private void barButtonItemRefresh_ItemClick(object sender, ItemClickEventArgs e)
         {
             LoadDevices();
         }
-
+        
         /// <summary>
-        /// حدث النقر المزدوج على صف في جدول الأجهزة
+        /// حدث النقر على زر إضافة جهاز
         /// </summary>
-        private void gridViewDevices_DoubleClick(object sender, EventArgs e)
+        private void barButtonItemAdd_ItemClick(object sender, ItemClickEventArgs e)
         {
-            if (btnEdit.Enabled)
+            using (var form = new BiometricDeviceForm())
             {
-                EditDevice();
+                if (form.ShowDialog() == DialogResult.OK)
+                {
+                    LoadDevices();
+                }
             }
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر تعديل
+        /// </summary>
+        private void barButtonItemEdit_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            EditSelectedDevice();
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر حذف
+        /// </summary>
+        private void barButtonItemDelete_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            DeleteSelectedDevice();
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر مزامنة الكل
+        /// </summary>
+        private async void barButtonItemSyncAll_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            await SyncAllDevicesAsync();
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر مزامنة المستخدمين
+        /// </summary>
+        private void barButtonItemSyncUsers_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            SyncSelectedDeviceUsers();
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر مزامنة السجلات
+        /// </summary>
+        private void barButtonItemSyncLogs_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            SyncSelectedDeviceLogs();
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر معالجة السجلات
+        /// </summary>
+        private void barButtonItemProcessLogs_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            ProcessAttendanceLogs();
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر اختبار الاتصال
+        /// </summary>
+        private void barButtonItemTestConnection_ItemClick(object sender, ItemClickEventArgs e)
+        {
+            TestSelectedDeviceConnection();
+        }
+        
+        /// <summary>
+        /// تعديل الجهاز المحدد
+        /// </summary>
+        private void EditSelectedDevice()
+        {
+            var selectedDevice = biometricDeviceBindingSource.Current as BiometricDevice;
+            if (selectedDevice == null)
+            {
+                XtraMessageBox.Show("الرجاء تحديد جهاز أولاً", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            
+            using (var form = new BiometricDeviceForm(selectedDevice))
+            {
+                if (form.ShowDialog() == DialogResult.OK)
+                {
+                    LoadDevices();
+                }
+            }
+        }
+        
+        /// <summary>
+        /// حذف الجهاز المحدد
+        /// </summary>
+        private void DeleteSelectedDevice()
+        {
+            var selectedDevice = biometricDeviceBindingSource.Current as BiometricDevice;
+            if (selectedDevice == null)
+            {
+                XtraMessageBox.Show("الرجاء تحديد جهاز أولاً", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            
+            if (XtraMessageBox.Show($"هل أنت متأكد من حذف الجهاز '{selectedDevice.DeviceName}'؟", "تأكيد الحذف", 
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            {
+                try
+                {
+                    bool result = _deviceManager.DeleteDevice(selectedDevice.ID);
+                    
+                    if (result)
+                    {
+                        LoadDevices();
+                        XtraMessageBox.Show("تم حذف الجهاز بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        XtraMessageBox.Show("فشل في حذف الجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogManager.LogException(ex, $"فشل في حذف الجهاز {selectedDevice.ID}");
+                    XtraMessageBox.Show("حدث خطأ أثناء حذف الجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+        
+        /// <summary>
+        /// اختبار الاتصال بالجهاز المحدد
+        /// </summary>
+        private void TestSelectedDeviceConnection()
+        {
+            var selectedDevice = biometricDeviceBindingSource.Current as BiometricDevice;
+            if (selectedDevice == null)
+            {
+                XtraMessageBox.Show("الرجاء تحديد جهاز أولاً", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                
+                var result = _deviceManager.TestConnection(selectedDevice.IPAddress, selectedDevice.Port ?? 4370);
+                
+                if (result.IsSuccess)
+                {
+                    string deviceInfo = "";
+                    if (result.DeviceInfo != null)
+                    {
+                        deviceInfo = $"\nنوع الجهاز: {result.DeviceInfo.DeviceType}" +
+                                     $"\nالرقم التسلسلي: {result.DeviceInfo.SerialNumber}" +
+                                     $"\nالإصدار: {result.DeviceInfo.FirmwareVersion}" +
+                                     $"\nوقت الجهاز: {result.DeviceInfo.DeviceTime}";
+                    }
+                    
+                    XtraMessageBox.Show($"تم الاتصال بالجهاز بنجاح{deviceInfo}", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    XtraMessageBox.Show($"فشل في الاتصال بالجهاز\n{result.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في اختبار الاتصال بالجهاز {selectedDevice.DeviceName}");
+                XtraMessageBox.Show("حدث خطأ أثناء اختبار الاتصال بالجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+        
+        /// <summary>
+        /// مزامنة مستخدمي الجهاز المحدد
+        /// </summary>
+        private void SyncSelectedDeviceUsers()
+        {
+            var selectedDevice = biometricDeviceBindingSource.Current as BiometricDevice;
+            if (selectedDevice == null)
+            {
+                XtraMessageBox.Show("الرجاء تحديد جهاز أولاً", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                
+                var result = _deviceManager.SyncUsers(selectedDevice.ID);
+                
+                if (result.IsSuccess)
+                {
+                    LoadDevices();
+                    XtraMessageBox.Show($"تمت مزامنة المستخدمين بنجاح\nإجمالي السجلات: {result.TotalRecords}\nالسجلات الجديدة: {result.NewRecords}\nالأخطاء: {result.ErrorRecords}", 
+                        "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    XtraMessageBox.Show($"فشل في مزامنة المستخدمين\n{result.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في مزامنة مستخدمي الجهاز {selectedDevice.DeviceName}");
+                XtraMessageBox.Show("حدث خطأ أثناء مزامنة المستخدمين", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+        
+        /// <summary>
+        /// مزامنة سجلات الجهاز المحدد
+        /// </summary>
+        private void SyncSelectedDeviceLogs()
+        {
+            var selectedDevice = biometricDeviceBindingSource.Current as BiometricDevice;
+            if (selectedDevice == null)
+            {
+                XtraMessageBox.Show("الرجاء تحديد جهاز أولاً", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                
+                var result = _deviceManager.SyncAttendanceLogs(selectedDevice.ID);
+                
+                if (result.IsSuccess)
+                {
+                    LoadDevices();
+                    XtraMessageBox.Show($"تمت مزامنة سجلات الحضور بنجاح\nإجمالي السجلات: {result.TotalRecords}\nالسجلات الجديدة: {result.NewRecords}\nالأخطاء: {result.ErrorRecords}", 
+                        "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    XtraMessageBox.Show($"فشل في مزامنة سجلات الحضور\n{result.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"فشل في مزامنة سجلات الجهاز {selectedDevice.DeviceName}");
+                XtraMessageBox.Show("حدث خطأ أثناء مزامنة سجلات الحضور", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+        
+        /// <summary>
+        /// معالجة سجلات الحضور
+        /// </summary>
+        private void ProcessAttendanceLogs()
+        {
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                
+                var result = _deviceManager.ProcessAttendanceLogs();
+                
+                if (result.IsSuccess)
+                {
+                    XtraMessageBox.Show($"تمت معالجة سجلات الحضور بنجاح\nإجمالي السجلات: {result.TotalRecords}\nالسجلات المعالجة: {result.ProcessedRecords}\nالأخطاء: {result.ErrorRecords}", 
+                        "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    XtraMessageBox.Show($"فشل في معالجة سجلات الحضور\n{result.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في معالجة سجلات الحضور");
+                XtraMessageBox.Show("حدث خطأ أثناء معالجة سجلات الحضور", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+        
+        /// <summary>
+        /// مزامنة جميع الأجهزة
+        /// </summary>
+        private async Task SyncAllDevicesAsync()
+        {
+            if (_isSyncing)
+            {
+                XtraMessageBox.Show("توجد عملية مزامنة جارية بالفعل", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            
+            try
+            {
+                _isSyncing = true;
+                Cursor = Cursors.WaitCursor;
+                
+                // تعطيل الأزرار أثناء المزامنة
+                SetSyncButtonsEnabled(false);
+                
+                // إظهار نافذة التقدم
+                using (var progressForm = new DevExpress.XtraWaitForm.ProgressPanel())
+                {
+                    progressForm.Caption = "جاري المزامنة";
+                    progressForm.Description = "يرجى الانتظار...";
+                    progressForm.Show();
+                    progressForm.Refresh();
+                    
+                    var result = await _deviceManager.SyncAllDevicesAsync();
+                    
+                    progressForm.Close();
+                    
+                    if (result.IsSuccess)
+                    {
+                        LoadDevices();
+                        
+                        int totalDevices = result.DeviceResults.Count;
+                        int successDevices = result.DeviceResults.Count(d => d.IsSuccess);
+                        
+                        string details = "تفاصيل المزامنة:\n";
+                        foreach (var deviceResult in result.DeviceResults)
+                        {
+                            details += $"- {deviceResult.DeviceName} ({deviceResult.IPAddress}): {(deviceResult.IsSuccess ? "نجاح" : "فشل")}";
+                            if (!deviceResult.IsSuccess && !string.IsNullOrEmpty(deviceResult.ErrorMessage))
+                            {
+                                details += $" - {deviceResult.ErrorMessage}";
+                            }
+                            details += "\n";
+                        }
+                        
+                        XtraMessageBox.Show($"تمت مزامنة الأجهزة\nالأجهزة الناجحة: {successDevices}/{totalDevices}\n\n{details}", 
+                            "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    else
+                    {
+                        XtraMessageBox.Show($"فشل في مزامنة الأجهزة\n{result.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في مزامنة جميع الأجهزة");
+                XtraMessageBox.Show("حدث خطأ أثناء مزامنة الأجهزة", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                _isSyncing = false;
+                Cursor = Cursors.Default;
+                
+                // إعادة تفعيل الأزرار
+                SetSyncButtonsEnabled(true);
+            }
+        }
+        
+        /// <summary>
+        /// تفعيل/تعطيل أزرار المزامنة
+        /// </summary>
+        private void SetSyncButtonsEnabled(bool enabled)
+        {
+            barButtonItemSyncAll.Enabled = enabled;
+            barButtonItemSyncUsers.Enabled = enabled;
+            barButtonItemSyncLogs.Enabled = enabled;
+            barButtonItemProcessLogs.Enabled = enabled;
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر التعديل في الجدول
+        /// </summary>
+        private void repositoryItemButtonEditEdit_ButtonClick(object sender, DevExpress.XtraEditors.Controls.ButtonPressedEventArgs e)
+        {
+            EditSelectedDevice();
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر اختبار الاتصال في الجدول
+        /// </summary>
+        private void repositoryItemButtonEditTest_ButtonClick(object sender, DevExpress.XtraEditors.Controls.ButtonPressedEventArgs e)
+        {
+            TestSelectedDeviceConnection();
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر الحذف في الجدول
+        /// </summary>
+        private void repositoryItemButtonEditDelete_ButtonClick(object sender, DevExpress.XtraEditors.Controls.ButtonPressedEventArgs e)
+        {
+            DeleteSelectedDevice();
         }
     }
 }

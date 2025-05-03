@@ -28,326 +28,496 @@ namespace HR.UI.Forms.Attendance
         /// </summary>
         private void InitializeComponent()
         {
-            this.txtDeviceName = new DevExpress.XtraEditors.TextEdit();
-            this.txtModel = new DevExpress.XtraEditors.TextEdit();
-            this.txtSerial = new DevExpress.XtraEditors.TextEdit();
-            this.txtIPAddress = new DevExpress.XtraEditors.TextEdit();
-            this.spinPort = new DevExpress.XtraEditors.SpinEdit();
-            this.txtCommunicationKey = new DevExpress.XtraEditors.TextEdit();
-            this.txtLocation = new DevExpress.XtraEditors.TextEdit();
-            this.memoDescription = new DevExpress.XtraEditors.MemoEdit();
-            this.checkIsActive = new DevExpress.XtraEditors.CheckEdit();
-            this.btnSave = new DevExpress.XtraEditors.SimpleButton();
-            this.btnCancel = new DevExpress.XtraEditors.SimpleButton();
-            this.btnTest = new DevExpress.XtraEditors.SimpleButton();
-            this.labelControl1 = new DevExpress.XtraEditors.LabelControl();
-            this.labelControl2 = new DevExpress.XtraEditors.LabelControl();
-            this.labelControl3 = new DevExpress.XtraEditors.LabelControl();
-            this.labelControl4 = new DevExpress.XtraEditors.LabelControl();
-            this.labelControl5 = new DevExpress.XtraEditors.LabelControl();
-            this.labelControl6 = new DevExpress.XtraEditors.LabelControl();
-            this.labelControl7 = new DevExpress.XtraEditors.LabelControl();
-            this.labelControl8 = new DevExpress.XtraEditors.LabelControl();
-            ((System.ComponentModel.ISupportInitialize)(this.txtDeviceName.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtModel.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtSerial.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtIPAddress.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.spinPort.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtCommunicationKey.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtLocation.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.memoDescription.Properties)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.checkIsActive.Properties)).BeginInit();
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(BiometricDeviceForm));
+            this.layoutControl1 = new DevExpress.XtraLayout.LayoutControl();
+            this.groupControl1 = new DevExpress.XtraEditors.GroupControl();
+            this.layoutControl2 = new DevExpress.XtraLayout.LayoutControl();
+            this.textEditIPAddress = new DevExpress.XtraEditors.TextEdit();
+            this.textEditDeviceName = new DevExpress.XtraEditors.TextEdit();
+            this.textEditDeviceModel = new DevExpress.XtraEditors.TextEdit();
+            this.textEditSerialNumber = new DevExpress.XtraEditors.TextEdit();
+            this.spinEditPort = new DevExpress.XtraEditors.SpinEdit();
+            this.textEditCommunicationKey = new DevExpress.XtraEditors.TextEdit();
+            this.memoEditDescription = new DevExpress.XtraEditors.MemoEdit();
+            this.textEditLocation = new DevExpress.XtraEditors.TextEdit();
+            this.checkEditIsActive = new DevExpress.XtraEditors.CheckEdit();
+            this.simpleButtonTestConnection = new DevExpress.XtraEditors.SimpleButton();
+            this.layoutControlGroup1 = new DevExpress.XtraLayout.LayoutControlGroup();
+            this.layoutControlItem3 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem4 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem5 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem6 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem7 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem8 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem9 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem10 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem11 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem14 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.emptySpaceItem1 = new DevExpress.XtraLayout.EmptySpaceItem();
+            this.simpleButtonSave = new DevExpress.XtraEditors.SimpleButton();
+            this.simpleButtonCancel = new DevExpress.XtraEditors.SimpleButton();
+            this.Root = new DevExpress.XtraLayout.LayoutControlGroup();
+            this.layoutControlItem1 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem12 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.layoutControlItem13 = new DevExpress.XtraLayout.LayoutControlItem();
+            this.emptySpaceItem2 = new DevExpress.XtraLayout.EmptySpaceItem();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControl1)).BeginInit();
+            this.layoutControl1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.groupControl1)).BeginInit();
+            this.groupControl1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControl2)).BeginInit();
+            this.layoutControl2.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditIPAddress.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditDeviceName.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditDeviceModel.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditSerialNumber.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.spinEditPort.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditCommunicationKey.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.memoEditDescription.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditLocation.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.checkEditIsActive.Properties)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem3)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem4)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem5)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem6)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem7)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem8)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem9)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem10)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem11)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem14)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.emptySpaceItem1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.Root)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem1)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem12)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem13)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.emptySpaceItem2)).BeginInit();
             this.SuspendLayout();
             // 
-            // txtDeviceName
+            // layoutControl1
             // 
-            this.txtDeviceName.Location = new System.Drawing.Point(150, 12);
-            this.txtDeviceName.Name = "txtDeviceName";
-            this.txtDeviceName.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtDeviceName.Properties.Appearance.Options.UseFont = true;
-            this.txtDeviceName.Size = new System.Drawing.Size(272, 22);
-            this.txtDeviceName.TabIndex = 0;
+            this.layoutControl1.Controls.Add(this.groupControl1);
+            this.layoutControl1.Controls.Add(this.simpleButtonSave);
+            this.layoutControl1.Controls.Add(this.simpleButtonCancel);
+            this.layoutControl1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.layoutControl1.Location = new System.Drawing.Point(0, 0);
+            this.layoutControl1.Name = "layoutControl1";
+            this.layoutControl1.Root = this.Root;
+            this.layoutControl1.Size = new System.Drawing.Size(522, 403);
+            this.layoutControl1.TabIndex = 0;
+            this.layoutControl1.Text = "layoutControl1";
             // 
-            // txtModel
+            // groupControl1
             // 
-            this.txtModel.Location = new System.Drawing.Point(150, 40);
-            this.txtModel.Name = "txtModel";
-            this.txtModel.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtModel.Properties.Appearance.Options.UseFont = true;
-            this.txtModel.Size = new System.Drawing.Size(272, 22);
-            this.txtModel.TabIndex = 1;
+            this.groupControl1.Controls.Add(this.layoutControl2);
+            this.groupControl1.Location = new System.Drawing.Point(12, 12);
+            this.groupControl1.Name = "groupControl1";
+            this.groupControl1.Size = new System.Drawing.Size(498, 347);
+            this.groupControl1.TabIndex = 4;
+            this.groupControl1.Text = "بيانات الجهاز";
             // 
-            // txtSerial
+            // layoutControl2
             // 
-            this.txtSerial.Location = new System.Drawing.Point(150, 68);
-            this.txtSerial.Name = "txtSerial";
-            this.txtSerial.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtSerial.Properties.Appearance.Options.UseFont = true;
-            this.txtSerial.Size = new System.Drawing.Size(272, 22);
-            this.txtSerial.TabIndex = 2;
+            this.layoutControl2.Controls.Add(this.textEditIPAddress);
+            this.layoutControl2.Controls.Add(this.textEditDeviceName);
+            this.layoutControl2.Controls.Add(this.textEditDeviceModel);
+            this.layoutControl2.Controls.Add(this.textEditSerialNumber);
+            this.layoutControl2.Controls.Add(this.spinEditPort);
+            this.layoutControl2.Controls.Add(this.textEditCommunicationKey);
+            this.layoutControl2.Controls.Add(this.memoEditDescription);
+            this.layoutControl2.Controls.Add(this.textEditLocation);
+            this.layoutControl2.Controls.Add(this.checkEditIsActive);
+            this.layoutControl2.Controls.Add(this.simpleButtonTestConnection);
+            this.layoutControl2.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.layoutControl2.Location = new System.Drawing.Point(2, 23);
+            this.layoutControl2.Name = "layoutControl2";
+            this.layoutControl2.Root = this.layoutControlGroup1;
+            this.layoutControl2.Size = new System.Drawing.Size(494, 322);
+            this.layoutControl2.TabIndex = 0;
+            this.layoutControl2.Text = "layoutControl2";
             // 
-            // txtIPAddress
+            // textEditIPAddress
             // 
-            this.txtIPAddress.Location = new System.Drawing.Point(150, 96);
-            this.txtIPAddress.Name = "txtIPAddress";
-            this.txtIPAddress.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtIPAddress.Properties.Appearance.Options.UseFont = true;
-            this.txtIPAddress.Size = new System.Drawing.Size(225, 22);
-            this.txtIPAddress.TabIndex = 3;
+            this.textEditIPAddress.Location = new System.Drawing.Point(12, 84);
+            this.textEditIPAddress.Name = "textEditIPAddress";
+            this.textEditIPAddress.Size = new System.Drawing.Size(377, 20);
+            this.textEditIPAddress.StyleController = this.layoutControl2;
+            this.textEditIPAddress.TabIndex = 4;
             // 
-            // spinPort
+            // textEditDeviceName
             // 
-            this.spinPort.EditValue = new decimal(new int[] {
+            this.textEditDeviceName.Location = new System.Drawing.Point(12, 12);
+            this.textEditDeviceName.Name = "textEditDeviceName";
+            this.textEditDeviceName.Size = new System.Drawing.Size(377, 20);
+            this.textEditDeviceName.StyleController = this.layoutControl2;
+            this.textEditDeviceName.TabIndex = 5;
+            // 
+            // textEditDeviceModel
+            // 
+            this.textEditDeviceModel.Location = new System.Drawing.Point(12, 36);
+            this.textEditDeviceModel.Name = "textEditDeviceModel";
+            this.textEditDeviceModel.Size = new System.Drawing.Size(377, 20);
+            this.textEditDeviceModel.StyleController = this.layoutControl2;
+            this.textEditDeviceModel.TabIndex = 6;
+            // 
+            // textEditSerialNumber
+            // 
+            this.textEditSerialNumber.Location = new System.Drawing.Point(12, 60);
+            this.textEditSerialNumber.Name = "textEditSerialNumber";
+            this.textEditSerialNumber.Size = new System.Drawing.Size(377, 20);
+            this.textEditSerialNumber.StyleController = this.layoutControl2;
+            this.textEditSerialNumber.TabIndex = 7;
+            // 
+            // spinEditPort
+            // 
+            this.spinEditPort.EditValue = new decimal(new int[] {
             4370,
             0,
             0,
             0});
-            this.spinPort.Location = new System.Drawing.Point(150, 124);
-            this.spinPort.Name = "spinPort";
-            this.spinPort.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.spinPort.Properties.Appearance.Options.UseFont = true;
-            this.spinPort.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
+            this.spinEditPort.Location = new System.Drawing.Point(12, 108);
+            this.spinEditPort.Name = "spinEditPort";
+            this.spinEditPort.Properties.Buttons.AddRange(new DevExpress.XtraEditors.Controls.EditorButton[] {
             new DevExpress.XtraEditors.Controls.EditorButton(DevExpress.XtraEditors.Controls.ButtonPredefines.Combo)});
-            this.spinPort.Properties.IsFloatValue = false;
-            this.spinPort.Properties.Mask.EditMask = "N00";
-            this.spinPort.Properties.MaxValue = new decimal(new int[] {
+            this.spinEditPort.Properties.MaxValue = new decimal(new int[] {
             65535,
             0,
             0,
             0});
-            this.spinPort.Properties.MinValue = new decimal(new int[] {
+            this.spinEditPort.Properties.MinValue = new decimal(new int[] {
             1,
             0,
             0,
             0});
-            this.spinPort.Size = new System.Drawing.Size(100, 22);
-            this.spinPort.TabIndex = 4;
+            this.spinEditPort.Size = new System.Drawing.Size(377, 20);
+            this.spinEditPort.StyleController = this.layoutControl2;
+            this.spinEditPort.TabIndex = 8;
             // 
-            // txtCommunicationKey
+            // textEditCommunicationKey
             // 
-            this.txtCommunicationKey.Location = new System.Drawing.Point(150, 152);
-            this.txtCommunicationKey.Name = "txtCommunicationKey";
-            this.txtCommunicationKey.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtCommunicationKey.Properties.Appearance.Options.UseFont = true;
-            this.txtCommunicationKey.Properties.PasswordChar = '*';
-            this.txtCommunicationKey.Size = new System.Drawing.Size(272, 22);
-            this.txtCommunicationKey.TabIndex = 5;
+            this.textEditCommunicationKey.Location = new System.Drawing.Point(12, 132);
+            this.textEditCommunicationKey.Name = "textEditCommunicationKey";
+            this.textEditCommunicationKey.Properties.PasswordChar = '*';
+            this.textEditCommunicationKey.Size = new System.Drawing.Size(377, 20);
+            this.textEditCommunicationKey.StyleController = this.layoutControl2;
+            this.textEditCommunicationKey.TabIndex = 9;
             // 
-            // txtLocation
+            // memoEditDescription
             // 
-            this.txtLocation.Location = new System.Drawing.Point(150, 180);
-            this.txtLocation.Name = "txtLocation";
-            this.txtLocation.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.txtLocation.Properties.Appearance.Options.UseFont = true;
-            this.txtLocation.Size = new System.Drawing.Size(272, 22);
-            this.txtLocation.TabIndex = 6;
+            this.memoEditDescription.Location = new System.Drawing.Point(12, 204);
+            this.memoEditDescription.Name = "memoEditDescription";
+            this.memoEditDescription.Size = new System.Drawing.Size(377, 72);
+            this.memoEditDescription.StyleController = this.layoutControl2;
+            this.memoEditDescription.TabIndex = 10;
             // 
-            // memoDescription
+            // textEditLocation
             // 
-            this.memoDescription.Location = new System.Drawing.Point(150, 208);
-            this.memoDescription.Name = "memoDescription";
-            this.memoDescription.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.memoDescription.Properties.Appearance.Options.UseFont = true;
-            this.memoDescription.Size = new System.Drawing.Size(272, 69);
-            this.memoDescription.TabIndex = 7;
+            this.textEditLocation.Location = new System.Drawing.Point(12, 156);
+            this.textEditLocation.Name = "textEditLocation";
+            this.textEditLocation.Size = new System.Drawing.Size(377, 20);
+            this.textEditLocation.StyleController = this.layoutControl2;
+            this.textEditLocation.TabIndex = 11;
             // 
-            // checkIsActive
+            // checkEditIsActive
             // 
-            this.checkIsActive.Location = new System.Drawing.Point(150, 283);
-            this.checkIsActive.Name = "checkIsActive";
-            this.checkIsActive.Properties.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.checkIsActive.Properties.Appearance.Options.UseFont = true;
-            this.checkIsActive.Properties.Caption = "نشط";
-            this.checkIsActive.Size = new System.Drawing.Size(75, 20);
-            this.checkIsActive.TabIndex = 8;
+            this.checkEditIsActive.EditValue = true;
+            this.checkEditIsActive.Location = new System.Drawing.Point(12, 180);
+            this.checkEditIsActive.Name = "checkEditIsActive";
+            this.checkEditIsActive.Properties.Caption = "نشط";
+            this.checkEditIsActive.Properties.GlyphAlignment = DevExpress.Utils.HorzAlignment.Far;
+            this.checkEditIsActive.Size = new System.Drawing.Size(470, 20);
+            this.checkEditIsActive.StyleController = this.layoutControl2;
+            this.checkEditIsActive.TabIndex = 12;
             // 
-            // btnSave
+            // simpleButtonTestConnection
             // 
-            this.btnSave.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnSave.Appearance.Options.UseFont = true;
-            this.btnSave.Location = new System.Drawing.Point(150, 317);
-            this.btnSave.Name = "btnSave";
-            this.btnSave.Size = new System.Drawing.Size(75, 23);
-            this.btnSave.TabIndex = 9;
-            this.btnSave.Text = "حفظ";
-            this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
+            this.simpleButtonTestConnection.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("simpleButtonTestConnection.ImageOptions.Image")));
+            this.simpleButtonTestConnection.Location = new System.Drawing.Point(12, 280);
+            this.simpleButtonTestConnection.Name = "simpleButtonTestConnection";
+            this.simpleButtonTestConnection.Size = new System.Drawing.Size(118, 22);
+            this.simpleButtonTestConnection.StyleController = this.layoutControl2;
+            this.simpleButtonTestConnection.TabIndex = 13;
+            this.simpleButtonTestConnection.Text = "اختبار الاتصال";
+            this.simpleButtonTestConnection.Click += new System.EventHandler(this.simpleButtonTestConnection_Click);
             // 
-            // btnCancel
+            // layoutControlGroup1
             // 
-            this.btnCancel.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnCancel.Appearance.Options.UseFont = true;
-            this.btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            this.btnCancel.Location = new System.Drawing.Point(231, 317);
-            this.btnCancel.Name = "btnCancel";
-            this.btnCancel.Size = new System.Drawing.Size(75, 23);
-            this.btnCancel.TabIndex = 10;
-            this.btnCancel.Text = "إلغاء";
-            this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
+            this.layoutControlGroup1.EnableIndentsWithoutBorders = DevExpress.Utils.DefaultBoolean.True;
+            this.layoutControlGroup1.GroupBordersVisible = false;
+            this.layoutControlGroup1.Items.AddRange(new DevExpress.XtraLayout.BaseLayoutItem[] {
+            this.layoutControlItem3,
+            this.layoutControlItem4,
+            this.layoutControlItem5,
+            this.layoutControlItem6,
+            this.layoutControlItem7,
+            this.layoutControlItem8,
+            this.layoutControlItem9,
+            this.layoutControlItem10,
+            this.layoutControlItem11,
+            this.layoutControlItem14,
+            this.emptySpaceItem1});
+            this.layoutControlGroup1.Name = "layoutControlGroup1";
+            this.layoutControlGroup1.Size = new System.Drawing.Size(494, 322);
+            this.layoutControlGroup1.TextVisible = false;
             // 
-            // btnTest
+            // layoutControlItem3
             // 
-            this.btnTest.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnTest.Appearance.Options.UseFont = true;
-            this.btnTest.Location = new System.Drawing.Point(347, 317);
-            this.btnTest.Name = "btnTest";
-            this.btnTest.Size = new System.Drawing.Size(75, 23);
-            this.btnTest.TabIndex = 11;
-            this.btnTest.Text = "اختبار الاتصال";
-            this.btnTest.Click += new System.EventHandler(this.btnTest_Click);
+            this.layoutControlItem3.Control = this.textEditIPAddress;
+            this.layoutControlItem3.Location = new System.Drawing.Point(0, 72);
+            this.layoutControlItem3.Name = "layoutControlItem3";
+            this.layoutControlItem3.Size = new System.Drawing.Size(474, 24);
+            this.layoutControlItem3.Text = "عنوان IP:";
+            this.layoutControlItem3.TextSize = new System.Drawing.Size(81, 13);
             // 
-            // labelControl1
+            // layoutControlItem4
             // 
-            this.labelControl1.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelControl1.Appearance.Options.UseFont = true;
-            this.labelControl1.Location = new System.Drawing.Point(68, 15);
-            this.labelControl1.Name = "labelControl1";
-            this.labelControl1.Size = new System.Drawing.Size(56, 16);
-            this.labelControl1.TabIndex = 12;
-            this.labelControl1.Text = "اسم الجهاز";
+            this.layoutControlItem4.Control = this.textEditDeviceName;
+            this.layoutControlItem4.Location = new System.Drawing.Point(0, 0);
+            this.layoutControlItem4.Name = "layoutControlItem4";
+            this.layoutControlItem4.Size = new System.Drawing.Size(474, 24);
+            this.layoutControlItem4.Text = "اسم الجهاز:";
+            this.layoutControlItem4.TextSize = new System.Drawing.Size(81, 13);
             // 
-            // labelControl2
+            // layoutControlItem5
             // 
-            this.labelControl2.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelControl2.Appearance.Options.UseFont = true;
-            this.labelControl2.Location = new System.Drawing.Point(68, 43);
-            this.labelControl2.Name = "labelControl2";
-            this.labelControl2.Size = new System.Drawing.Size(61, 16);
-            this.labelControl2.TabIndex = 13;
-            this.labelControl2.Text = "موديل الجهاز";
+            this.layoutControlItem5.Control = this.textEditDeviceModel;
+            this.layoutControlItem5.Location = new System.Drawing.Point(0, 24);
+            this.layoutControlItem5.Name = "layoutControlItem5";
+            this.layoutControlItem5.Size = new System.Drawing.Size(474, 24);
+            this.layoutControlItem5.Text = "موديل الجهاز:";
+            this.layoutControlItem5.TextSize = new System.Drawing.Size(81, 13);
             // 
-            // labelControl3
+            // layoutControlItem6
             // 
-            this.labelControl3.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelControl3.Appearance.Options.UseFont = true;
-            this.labelControl3.Location = new System.Drawing.Point(68, 71);
-            this.labelControl3.Name = "labelControl3";
-            this.labelControl3.Size = new System.Drawing.Size(75, 16);
-            this.labelControl3.TabIndex = 14;
-            this.labelControl3.Text = "الرقم التسلسلي";
+            this.layoutControlItem6.Control = this.textEditSerialNumber;
+            this.layoutControlItem6.Location = new System.Drawing.Point(0, 48);
+            this.layoutControlItem6.Name = "layoutControlItem6";
+            this.layoutControlItem6.Size = new System.Drawing.Size(474, 24);
+            this.layoutControlItem6.Text = "الرقم التسلسلي:";
+            this.layoutControlItem6.TextSize = new System.Drawing.Size(81, 13);
             // 
-            // labelControl4
+            // layoutControlItem7
             // 
-            this.labelControl4.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelControl4.Appearance.Options.UseFont = true;
-            this.labelControl4.Location = new System.Drawing.Point(68, 99);
-            this.labelControl4.Name = "labelControl4";
-            this.labelControl4.Size = new System.Drawing.Size(61, 16);
-            this.labelControl4.TabIndex = 15;
-            this.labelControl4.Text = "عنوان IP";
+            this.layoutControlItem7.Control = this.spinEditPort;
+            this.layoutControlItem7.Location = new System.Drawing.Point(0, 96);
+            this.layoutControlItem7.Name = "layoutControlItem7";
+            this.layoutControlItem7.Size = new System.Drawing.Size(474, 24);
+            this.layoutControlItem7.Text = "المنفذ:";
+            this.layoutControlItem7.TextSize = new System.Drawing.Size(81, 13);
             // 
-            // labelControl5
+            // layoutControlItem8
             // 
-            this.labelControl5.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelControl5.Appearance.Options.UseFont = true;
-            this.labelControl5.Location = new System.Drawing.Point(68, 127);
-            this.labelControl5.Name = "labelControl5";
-            this.labelControl5.Size = new System.Drawing.Size(35, 16);
-            this.labelControl5.TabIndex = 16;
-            this.labelControl5.Text = "المنفذ";
+            this.layoutControlItem8.Control = this.textEditCommunicationKey;
+            this.layoutControlItem8.Location = new System.Drawing.Point(0, 120);
+            this.layoutControlItem8.Name = "layoutControlItem8";
+            this.layoutControlItem8.Size = new System.Drawing.Size(474, 24);
+            this.layoutControlItem8.Text = "مفتاح الاتصال:";
+            this.layoutControlItem8.TextSize = new System.Drawing.Size(81, 13);
             // 
-            // labelControl6
+            // layoutControlItem9
             // 
-            this.labelControl6.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelControl6.Appearance.Options.UseFont = true;
-            this.labelControl6.Location = new System.Drawing.Point(68, 155);
-            this.labelControl6.Name = "labelControl6";
-            this.labelControl6.Size = new System.Drawing.Size(68, 16);
-            this.labelControl6.TabIndex = 17;
-            this.labelControl6.Text = "مفتاح الاتصال";
+            this.layoutControlItem9.Control = this.memoEditDescription;
+            this.layoutControlItem9.Location = new System.Drawing.Point(0, 192);
+            this.layoutControlItem9.Name = "layoutControlItem9";
+            this.layoutControlItem9.Size = new System.Drawing.Size(474, 76);
+            this.layoutControlItem9.Text = "الوصف:";
+            this.layoutControlItem9.TextSize = new System.Drawing.Size(81, 13);
             // 
-            // labelControl7
+            // layoutControlItem10
             // 
-            this.labelControl7.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelControl7.Appearance.Options.UseFont = true;
-            this.labelControl7.Location = new System.Drawing.Point(68, 183);
-            this.labelControl7.Name = "labelControl7";
-            this.labelControl7.Size = new System.Drawing.Size(31, 16);
-            this.labelControl7.TabIndex = 18;
-            this.labelControl7.Text = "الموقع";
+            this.layoutControlItem10.Control = this.textEditLocation;
+            this.layoutControlItem10.Location = new System.Drawing.Point(0, 144);
+            this.layoutControlItem10.Name = "layoutControlItem10";
+            this.layoutControlItem10.Size = new System.Drawing.Size(474, 24);
+            this.layoutControlItem10.Text = "الموقع:";
+            this.layoutControlItem10.TextSize = new System.Drawing.Size(81, 13);
             // 
-            // labelControl8
+            // layoutControlItem11
             // 
-            this.labelControl8.Appearance.Font = new System.Drawing.Font("Tahoma", 9.75F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.labelControl8.Appearance.Options.UseFont = true;
-            this.labelControl8.Location = new System.Drawing.Point(68, 211);
-            this.labelControl8.Name = "labelControl8";
-            this.labelControl8.Size = new System.Drawing.Size(34, 16);
-            this.labelControl8.TabIndex = 19;
-            this.labelControl8.Text = "الوصف";
+            this.layoutControlItem11.Control = this.checkEditIsActive;
+            this.layoutControlItem11.Location = new System.Drawing.Point(0, 168);
+            this.layoutControlItem11.Name = "layoutControlItem11";
+            this.layoutControlItem11.Size = new System.Drawing.Size(474, 24);
+            this.layoutControlItem11.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutControlItem11.TextVisible = false;
+            // 
+            // layoutControlItem14
+            // 
+            this.layoutControlItem14.Control = this.simpleButtonTestConnection;
+            this.layoutControlItem14.Location = new System.Drawing.Point(0, 268);
+            this.layoutControlItem14.Name = "layoutControlItem14";
+            this.layoutControlItem14.Size = new System.Drawing.Size(122, 34);
+            this.layoutControlItem14.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutControlItem14.TextVisible = false;
+            // 
+            // emptySpaceItem1
+            // 
+            this.emptySpaceItem1.AllowHotTrack = false;
+            this.emptySpaceItem1.Location = new System.Drawing.Point(122, 268);
+            this.emptySpaceItem1.Name = "emptySpaceItem1";
+            this.emptySpaceItem1.Size = new System.Drawing.Size(352, 34);
+            this.emptySpaceItem1.TextSize = new System.Drawing.Size(0, 0);
+            // 
+            // simpleButtonSave
+            // 
+            this.simpleButtonSave.DialogResult = System.Windows.Forms.DialogResult.OK;
+            this.simpleButtonSave.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("simpleButtonSave.ImageOptions.Image")));
+            this.simpleButtonSave.Location = new System.Drawing.Point(347, 363);
+            this.simpleButtonSave.Name = "simpleButtonSave";
+            this.simpleButtonSave.Size = new System.Drawing.Size(163, 22);
+            this.simpleButtonSave.StyleController = this.layoutControl1;
+            this.simpleButtonSave.TabIndex = 5;
+            this.simpleButtonSave.Text = "حفظ";
+            this.simpleButtonSave.Click += new System.EventHandler(this.simpleButtonSave_Click);
+            // 
+            // simpleButtonCancel
+            // 
+            this.simpleButtonCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
+            this.simpleButtonCancel.ImageOptions.Image = ((System.Drawing.Image)(resources.GetObject("simpleButtonCancel.ImageOptions.Image")));
+            this.simpleButtonCancel.Location = new System.Drawing.Point(12, 363);
+            this.simpleButtonCancel.Name = "simpleButtonCancel";
+            this.simpleButtonCancel.Size = new System.Drawing.Size(163, 22);
+            this.simpleButtonCancel.StyleController = this.layoutControl1;
+            this.simpleButtonCancel.TabIndex = 6;
+            this.simpleButtonCancel.Text = "إلغاء";
+            // 
+            // Root
+            // 
+            this.Root.EnableIndentsWithoutBorders = DevExpress.Utils.DefaultBoolean.True;
+            this.Root.GroupBordersVisible = false;
+            this.Root.Items.AddRange(new DevExpress.XtraLayout.BaseLayoutItem[] {
+            this.layoutControlItem1,
+            this.layoutControlItem12,
+            this.layoutControlItem13,
+            this.emptySpaceItem2});
+            this.Root.Name = "Root";
+            this.Root.Size = new System.Drawing.Size(522, 403);
+            this.Root.TextVisible = false;
+            // 
+            // layoutControlItem1
+            // 
+            this.layoutControlItem1.Control = this.groupControl1;
+            this.layoutControlItem1.Location = new System.Drawing.Point(0, 0);
+            this.layoutControlItem1.Name = "layoutControlItem1";
+            this.layoutControlItem1.Size = new System.Drawing.Size(502, 351);
+            this.layoutControlItem1.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutControlItem1.TextVisible = false;
+            // 
+            // layoutControlItem12
+            // 
+            this.layoutControlItem12.Control = this.simpleButtonSave;
+            this.layoutControlItem12.Location = new System.Drawing.Point(335, 351);
+            this.layoutControlItem12.Name = "layoutControlItem12";
+            this.layoutControlItem12.Size = new System.Drawing.Size(167, 32);
+            this.layoutControlItem12.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutControlItem12.TextVisible = false;
+            // 
+            // layoutControlItem13
+            // 
+            this.layoutControlItem13.Control = this.simpleButtonCancel;
+            this.layoutControlItem13.Location = new System.Drawing.Point(0, 351);
+            this.layoutControlItem13.Name = "layoutControlItem13";
+            this.layoutControlItem13.Size = new System.Drawing.Size(167, 32);
+            this.layoutControlItem13.TextSize = new System.Drawing.Size(0, 0);
+            this.layoutControlItem13.TextVisible = false;
+            // 
+            // emptySpaceItem2
+            // 
+            this.emptySpaceItem2.AllowHotTrack = false;
+            this.emptySpaceItem2.Location = new System.Drawing.Point(167, 351);
+            this.emptySpaceItem2.Name = "emptySpaceItem2";
+            this.emptySpaceItem2.Size = new System.Drawing.Size(168, 32);
+            this.emptySpaceItem2.TextSize = new System.Drawing.Size(0, 0);
             // 
             // BiometricDeviceForm
             // 
-            this.AcceptButton = this.btnSave;
+            this.AcceptButton = this.simpleButtonSave;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.CancelButton = this.btnCancel;
-            this.ClientSize = new System.Drawing.Size(434, 361);
-            this.Controls.Add(this.labelControl8);
-            this.Controls.Add(this.labelControl7);
-            this.Controls.Add(this.labelControl6);
-            this.Controls.Add(this.labelControl5);
-            this.Controls.Add(this.labelControl4);
-            this.Controls.Add(this.labelControl3);
-            this.Controls.Add(this.labelControl2);
-            this.Controls.Add(this.labelControl1);
-            this.Controls.Add(this.btnTest);
-            this.Controls.Add(this.btnCancel);
-            this.Controls.Add(this.btnSave);
-            this.Controls.Add(this.checkIsActive);
-            this.Controls.Add(this.memoDescription);
-            this.Controls.Add(this.txtLocation);
-            this.Controls.Add(this.txtCommunicationKey);
-            this.Controls.Add(this.spinPort);
-            this.Controls.Add(this.txtIPAddress);
-            this.Controls.Add(this.txtSerial);
-            this.Controls.Add(this.txtModel);
-            this.Controls.Add(this.txtDeviceName);
+            this.CancelButton = this.simpleButtonCancel;
+            this.ClientSize = new System.Drawing.Size(522, 403);
+            this.Controls.Add(this.layoutControl1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+            this.IconOptions.Image = ((System.Drawing.Image)(resources.GetObject("BiometricDeviceForm.IconOptions.Image")));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "BiometricDeviceForm";
             this.RightToLeft = System.Windows.Forms.RightToLeft.Yes;
             this.RightToLeftLayout = true;
-            this.ShowIcon = false;
-            this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "جهاز البصمة";
+            this.Text = "بيانات جهاز البصمة";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.BiometricDeviceForm_FormClosing);
             this.Load += new System.EventHandler(this.BiometricDeviceForm_Load);
-            ((System.ComponentModel.ISupportInitialize)(this.txtDeviceName.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtModel.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtSerial.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtIPAddress.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.spinPort.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtCommunicationKey.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.txtLocation.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.memoDescription.Properties)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.checkIsActive.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControl1)).EndInit();
+            this.layoutControl1.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.groupControl1)).EndInit();
+            this.groupControl1.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControl2)).EndInit();
+            this.layoutControl2.ResumeLayout(false);
+            ((System.ComponentModel.ISupportInitialize)(this.textEditIPAddress.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditDeviceName.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditDeviceModel.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditSerialNumber.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.spinEditPort.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditCommunicationKey.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.memoEditDescription.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.textEditLocation.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.checkEditIsActive.Properties)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlGroup1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem3)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem4)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem5)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem6)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem7)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem8)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem9)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem10)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem11)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem14)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.emptySpaceItem1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.Root)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem1)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem12)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.layoutControlItem13)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.emptySpaceItem2)).EndInit();
             this.ResumeLayout(false);
-            this.PerformLayout();
 
         }
 
         #endregion
 
-        private DevExpress.XtraEditors.TextEdit txtDeviceName;
-        private DevExpress.XtraEditors.TextEdit txtModel;
-        private DevExpress.XtraEditors.TextEdit txtSerial;
-        private DevExpress.XtraEditors.TextEdit txtIPAddress;
-        private DevExpress.XtraEditors.SpinEdit spinPort;
-        private DevExpress.XtraEditors.TextEdit txtCommunicationKey;
-        private DevExpress.XtraEditors.TextEdit txtLocation;
-        private DevExpress.XtraEditors.MemoEdit memoDescription;
-        private DevExpress.XtraEditors.CheckEdit checkIsActive;
-        private DevExpress.XtraEditors.SimpleButton btnSave;
-        private DevExpress.XtraEditors.SimpleButton btnCancel;
-        private DevExpress.XtraEditors.SimpleButton btnTest;
-        private DevExpress.XtraEditors.LabelControl labelControl1;
-        private DevExpress.XtraEditors.LabelControl labelControl2;
-        private DevExpress.XtraEditors.LabelControl labelControl3;
-        private DevExpress.XtraEditors.LabelControl labelControl4;
-        private DevExpress.XtraEditors.LabelControl labelControl5;
-        private DevExpress.XtraEditors.LabelControl labelControl6;
-        private DevExpress.XtraEditors.LabelControl labelControl7;
-        private DevExpress.XtraEditors.LabelControl labelControl8;
+        private DevExpress.XtraLayout.LayoutControl layoutControl1;
+        private DevExpress.XtraLayout.LayoutControlGroup Root;
+        private DevExpress.XtraEditors.GroupControl groupControl1;
+        private DevExpress.XtraLayout.LayoutControl layoutControl2;
+        private DevExpress.XtraEditors.TextEdit textEditIPAddress;
+        private DevExpress.XtraLayout.LayoutControlGroup layoutControlGroup1;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem3;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem1;
+        private DevExpress.XtraEditors.TextEdit textEditDeviceName;
+        private DevExpress.XtraEditors.TextEdit textEditDeviceModel;
+        private DevExpress.XtraEditors.TextEdit textEditSerialNumber;
+        private DevExpress.XtraEditors.SpinEdit spinEditPort;
+        private DevExpress.XtraEditors.TextEdit textEditCommunicationKey;
+        private DevExpress.XtraEditors.MemoEdit memoEditDescription;
+        private DevExpress.XtraEditors.TextEdit textEditLocation;
+        private DevExpress.XtraEditors.CheckEdit checkEditIsActive;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem4;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem5;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem6;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem7;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem8;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem9;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem10;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem11;
+        private DevExpress.XtraEditors.SimpleButton simpleButtonSave;
+        private DevExpress.XtraEditors.SimpleButton simpleButtonCancel;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem12;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem13;
+        private DevExpress.XtraLayout.EmptySpaceItem emptySpaceItem2;
+        private DevExpress.XtraEditors.SimpleButton simpleButtonTestConnection;
+        private DevExpress.XtraLayout.LayoutControlItem layoutControlItem14;
+        private DevExpress.XtraLayout.EmptySpaceItem emptySpaceItem1;
     }
 }

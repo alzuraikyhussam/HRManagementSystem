@@ -8,233 +8,262 @@ using HR.Models;
 namespace HR.UI.Forms.Attendance
 {
     /// <summary>
-    /// نموذج إضافة/تعديل بيانات جهاز البصمة
+    /// نموذج إضافة/تعديل جهاز بصمة
     /// </summary>
-    public partial class BiometricDeviceForm : XtraForm
+    public partial class BiometricDeviceForm : DevExpress.XtraEditors.XtraForm
     {
         private readonly ZKTecoDeviceManager _deviceManager;
-        private readonly SessionManager _sessionManager;
-        private readonly int _deviceId;
-        private BiometricDevice _device;
-        private bool _isEditMode;
-
+        private readonly BiometricDevice _device;
+        private readonly bool _isNewDevice;
+        private bool _dataChanged = false;
+        
         /// <summary>
-        /// إنشاء نموذج جديد لإضافة جهاز
+        /// منشئ النموذج لإضافة جهاز جديد
         /// </summary>
         public BiometricDeviceForm()
         {
             InitializeComponent();
-            _deviceManager = new ZKTecoDeviceManager();
-            _sessionManager = SessionManager.Instance;
-            _deviceId = 0;
-            _isEditMode = false;
+            
+            _deviceManager = ZKTecoDeviceManager.Instance;
+            _device = new BiometricDevice();
+            _isNewDevice = true;
+            
+            // تهيئة افتراضية
+            _device.IsActive = true;
+            _device.Port = 4370;
         }
-
+        
         /// <summary>
-        /// إنشاء نموذج جديد لتعديل جهاز موجود
+        /// منشئ النموذج لتعديل جهاز موجود
         /// </summary>
-        /// <param name="deviceId">معرف الجهاز</param>
-        public BiometricDeviceForm(int deviceId)
+        /// <param name="device">بيانات الجهاز</param>
+        public BiometricDeviceForm(BiometricDevice device)
         {
             InitializeComponent();
-            _deviceManager = new ZKTecoDeviceManager();
-            _sessionManager = SessionManager.Instance;
-            _deviceId = deviceId;
-            _isEditMode = true;
+            
+            _deviceManager = ZKTecoDeviceManager.Instance;
+            _device = device;
+            _isNewDevice = false;
         }
-
+        
         /// <summary>
         /// حدث تحميل النموذج
         /// </summary>
         private void BiometricDeviceForm_Load(object sender, EventArgs e)
         {
-            try
-            {
-                // ضبط عنوان النموذج
-                this.Text = _isEditMode ? "تعديل بيانات جهاز البصمة" : "إضافة جهاز بصمة جديد";
-
-                // تعيين القيم الافتراضية
-                if (!_isEditMode)
-                {
-                    checkIsActive.Checked = true;
-                    spinPort.Value = 4370; // المنفذ الافتراضي لأجهزة ZK
-                }
-                else
-                {
-                    // تحميل بيانات الجهاز
-                    LoadDeviceData();
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء تحميل بيانات الجهاز: " + ex.Message,
-                    "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            LoadDeviceData();
         }
-
+        
         /// <summary>
-        /// تحميل بيانات الجهاز في وضع التعديل
+        /// تحميل بيانات الجهاز إلى النموذج
         /// </summary>
         private void LoadDeviceData()
         {
-            _device = _deviceManager.GetDeviceById(_deviceId);
-            if (_device == null)
-            {
-                XtraMessageBox.Show("لم يتم العثور على بيانات الجهاز المطلوب!",
-                    "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                this.DialogResult = DialogResult.Cancel;
-                this.Close();
-                return;
-            }
-
-            // ملء البيانات في النموذج
-            txtDeviceName.Text = _device.DeviceName;
-            txtModel.Text = _device.DeviceModel;
-            txtSerial.Text = _device.SerialNumber;
-            txtIPAddress.Text = _device.IPAddress;
-            spinPort.Value = _device.Port;
-            txtCommunicationKey.Text = _device.CommunicationKey;
-            txtLocation.Text = _device.Location;
-            memoDescription.Text = _device.Description;
-            checkIsActive.Checked = _device.IsActive;
+            textEditDeviceName.Text = _device.DeviceName;
+            textEditDeviceModel.Text = _device.DeviceModel;
+            textEditSerialNumber.Text = _device.SerialNumber;
+            textEditIPAddress.Text = _device.IPAddress;
+            spinEditPort.Value = _device.Port ?? 4370;
+            textEditCommunicationKey.Text = _device.CommunicationKey;
+            textEditLocation.Text = _device.Location;
+            memoEditDescription.Text = _device.Description;
+            checkEditIsActive.Checked = _device.IsActive;
+            
+            // تحديث عنوان النموذج
+            this.Text = _isNewDevice ? "إضافة جهاز بصمة جديد" : $"تعديل بيانات الجهاز: {_device.DeviceName}";
+            
+            // تمكين التحقق من تغيير البيانات
+            _dataChanged = false;
         }
-
-        /// <summary>
-        /// حفظ بيانات الجهاز
-        /// </summary>
-        private void SaveDevice()
-        {
-            try
-            {
-                // التحقق من صحة البيانات
-                if (string.IsNullOrWhiteSpace(txtDeviceName.Text))
-                {
-                    XtraMessageBox.Show("الرجاء إدخال اسم الجهاز", "تحذير", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtDeviceName.Focus();
-                    return;
-                }
-
-                if (string.IsNullOrWhiteSpace(txtIPAddress.Text))
-                {
-                    XtraMessageBox.Show("الرجاء إدخال عنوان IP للجهاز", "تحذير", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtIPAddress.Focus();
-                    return;
-                }
-
-                System.Net.IPAddress ipAddress;
-                if (!System.Net.IPAddress.TryParse(txtIPAddress.Text, out ipAddress))
-                {
-                    XtraMessageBox.Show("عنوان IP غير صالح. الرجاء إدخال عنوان IP صحيح.", "تحذير", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtIPAddress.Focus();
-                    return;
-                }
-
-                // إنشاء أو تحديث كائن الجهاز
-                BiometricDevice device = _isEditMode ? _device : new BiometricDevice();
-                device.DeviceName = txtDeviceName.Text.Trim();
-                device.DeviceModel = string.IsNullOrWhiteSpace(txtModel.Text) ? null : txtModel.Text.Trim();
-                device.SerialNumber = string.IsNullOrWhiteSpace(txtSerial.Text) ? null : txtSerial.Text.Trim();
-                device.IPAddress = txtIPAddress.Text.Trim();
-                device.Port = Convert.ToInt32(spinPort.Value);
-                device.CommunicationKey = string.IsNullOrWhiteSpace(txtCommunicationKey.Text) ? null : txtCommunicationKey.Text.Trim();
-                device.Location = string.IsNullOrWhiteSpace(txtLocation.Text) ? null : txtLocation.Text.Trim();
-                device.Description = string.IsNullOrWhiteSpace(memoDescription.Text) ? null : memoDescription.Text.Trim();
-                device.IsActive = checkIsActive.Checked;
-
-                if (_isEditMode)
-                {
-                    // تحديث الجهاز
-                    _deviceManager.UpdateDevice(device);
-                    XtraMessageBox.Show("تم تحديث بيانات الجهاز بنجاح", "تم", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-                else
-                {
-                    // إضافة جهاز جديد
-                    _deviceManager.AddDevice(device);
-                    XtraMessageBox.Show("تمت إضافة الجهاز بنجاح", "تم", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
-
-                DialogResult = DialogResult.OK;
-                Close();
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء حفظ بيانات الجهاز: " + ex.Message,
-                    "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// اختبار الاتصال بالجهاز
-        /// </summary>
-        private void TestConnection()
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(txtIPAddress.Text))
-                {
-                    XtraMessageBox.Show("الرجاء إدخال عنوان IP للجهاز", "تحذير", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtIPAddress.Focus();
-                    return;
-                }
-
-                System.Net.IPAddress ipAddress;
-                if (!System.Net.IPAddress.TryParse(txtIPAddress.Text, out ipAddress))
-                {
-                    XtraMessageBox.Show("عنوان IP غير صالح. الرجاء إدخال عنوان IP صحيح.", "تحذير", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    txtIPAddress.Focus();
-                    return;
-                }
-
-                // عرض مؤشر التقدم
-                using (var waitForm = new WaitForm1("جاري اختبار الاتصال..."))
-                {
-                    waitForm.Show(this);
-                    waitForm.SetDescription("جاري محاولة الاتصال بالجهاز. يرجى الانتظار...");
-
-                    bool result = _deviceManager.TestConnection(txtIPAddress.Text, Convert.ToInt32(spinPort.Value));
-
-                    waitForm.Close();
-
-                    if (result)
-                    {
-                        XtraMessageBox.Show("تم الاتصال بالجهاز بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    }
-                    else
-                    {
-                        XtraMessageBox.Show("فشل الاتصال بالجهاز. يرجى التحقق من عنوان IP والمنفذ والتأكد من أن الجهاز متصل بالشبكة.", "فشل الاتصال", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء اختبار الاتصال: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        /// <summary>
-        /// حدث النقر على زر حفظ
-        /// </summary>
-        private void btnSave_Click(object sender, EventArgs e)
-        {
-            SaveDevice();
-        }
-
-        /// <summary>
-        /// حدث النقر على زر إلغاء
-        /// </summary>
-        private void btnCancel_Click(object sender, EventArgs e)
-        {
-            DialogResult = DialogResult.Cancel;
-            Close();
-        }
-
+        
         /// <summary>
         /// حدث النقر على زر اختبار الاتصال
         /// </summary>
-        private void btnTest_Click(object sender, EventArgs e)
+        private void simpleButtonTestConnection_Click(object sender, EventArgs e)
         {
-            TestConnection();
+            if (string.IsNullOrWhiteSpace(textEditIPAddress.Text))
+            {
+                XtraMessageBox.Show("الرجاء إدخال عنوان IP للجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                textEditIPAddress.Focus();
+                return;
+            }
+            
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                
+                // اختبار الاتصال
+                var result = _deviceManager.TestConnection(textEditIPAddress.Text, (int)spinEditPort.Value);
+                
+                if (result.IsSuccess)
+                {
+                    string deviceInfo = "";
+                    if (result.DeviceInfo != null)
+                    {
+                        deviceInfo = $"\nنوع الجهاز: {result.DeviceInfo.DeviceType}" +
+                                     $"\nالرقم التسلسلي: {result.DeviceInfo.SerialNumber}" +
+                                     $"\nالإصدار: {result.DeviceInfo.FirmwareVersion}" +
+                                     $"\nوقت الجهاز: {result.DeviceInfo.DeviceTime}";
+                                     
+                        // تعبئة بعض البيانات تلقائياً
+                        if (string.IsNullOrEmpty(textEditSerialNumber.Text))
+                        {
+                            textEditSerialNumber.Text = result.DeviceInfo.SerialNumber;
+                            _dataChanged = true;
+                        }
+                    }
+                    
+                    XtraMessageBox.Show($"تم الاتصال بالجهاز بنجاح{deviceInfo}", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+                else
+                {
+                    XtraMessageBox.Show($"فشل في الاتصال بالجهاز\n{result.Message}", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في اختبار الاتصال بالجهاز");
+                XtraMessageBox.Show("حدث خطأ أثناء اختبار الاتصال بالجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+        
+        /// <summary>
+        /// حدث النقر على زر الحفظ
+        /// </summary>
+        private void simpleButtonSave_Click(object sender, EventArgs e)
+        {
+            if (!ValidateData())
+                return;
+            
+            try
+            {
+                Cursor = Cursors.WaitCursor;
+                
+                // جمع البيانات من النموذج
+                _device.DeviceName = textEditDeviceName.Text;
+                _device.DeviceModel = textEditDeviceModel.Text;
+                _device.SerialNumber = textEditSerialNumber.Text;
+                _device.IPAddress = textEditIPAddress.Text;
+                _device.Port = (int)spinEditPort.Value;
+                _device.CommunicationKey = textEditCommunicationKey.Text;
+                _device.Location = textEditLocation.Text;
+                _device.Description = memoEditDescription.Text;
+                _device.IsActive = checkEditIsActive.Checked;
+                
+                bool result;
+                
+                if (_isNewDevice)
+                {
+                    // إضافة جهاز جديد
+                    result = _deviceManager.AddDevice(_device);
+                    
+                    if (result)
+                    {
+                        XtraMessageBox.Show("تم إضافة الجهاز بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
+                    else
+                    {
+                        XtraMessageBox.Show("فشل في إضافة الجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+                else
+                {
+                    // تعديل جهاز موجود
+                    result = _deviceManager.UpdateDevice(_device);
+                    
+                    if (result)
+                    {
+                        XtraMessageBox.Show("تم تحديث بيانات الجهاز بنجاح", "نجاح", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        _dataChanged = false;
+                        this.DialogResult = DialogResult.OK;
+                        this.Close();
+                    }
+                    else
+                    {
+                        XtraMessageBox.Show("فشل في تحديث بيانات الجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل في حفظ بيانات الجهاز");
+                XtraMessageBox.Show("حدث خطأ أثناء حفظ بيانات الجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                Cursor = Cursors.Default;
+            }
+        }
+        
+        /// <summary>
+        /// التحقق من صحة البيانات
+        /// </summary>
+        private bool ValidateData()
+        {
+            // التحقق من اسم الجهاز
+            if (string.IsNullOrWhiteSpace(textEditDeviceName.Text))
+            {
+                XtraMessageBox.Show("الرجاء إدخال اسم الجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                textEditDeviceName.Focus();
+                return false;
+            }
+            
+            // التحقق من عنوان IP
+            if (string.IsNullOrWhiteSpace(textEditIPAddress.Text))
+            {
+                XtraMessageBox.Show("الرجاء إدخال عنوان IP للجهاز", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                textEditIPAddress.Focus();
+                return false;
+            }
+            
+            // التحقق من صحة عنوان IP
+            System.Net.IPAddress ipAddress;
+            if (!System.Net.IPAddress.TryParse(textEditIPAddress.Text, out ipAddress))
+            {
+                XtraMessageBox.Show("عنوان IP غير صحيح", "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                textEditIPAddress.Focus();
+                return false;
+            }
+            
+            return true;
+        }
+        
+        /// <summary>
+        /// حدث تغيير البيانات في أي حقل
+        /// </summary>
+        private void Control_TextChanged(object sender, EventArgs e)
+        {
+            _dataChanged = true;
+        }
+        
+        /// <summary>
+        /// حدث تغيير حالة التفعيل
+        /// </summary>
+        private void checkEditIsActive_CheckedChanged(object sender, EventArgs e)
+        {
+            _dataChanged = true;
+        }
+        
+        /// <summary>
+        /// حدث قبل إغلاق النموذج
+        /// </summary>
+        private void BiometricDeviceForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (_dataChanged && this.DialogResult != DialogResult.OK)
+            {
+                var result = XtraMessageBox.Show("هل تريد إلغاء التغييرات؟", "تنبيه", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+                
+                if (result == DialogResult.No)
+                {
+                    e.Cancel = true;
+                }
+            }
         }
     }
 }
