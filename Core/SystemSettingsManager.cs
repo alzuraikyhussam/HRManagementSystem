@@ -510,6 +510,200 @@ namespace HR.Core
             }
         }
         
+        /// <summary>
+        /// الحصول على إعدادات الإشعارات
+        /// </summary>
+        /// <returns>كائن إعدادات الإشعارات</returns>
+        public NotificationSettings GetNotificationSettings()
+        {
+            NotificationSettings settings = new NotificationSettings();
+            
+            try
+            {
+                // استرجاع إعدادات المجموعة
+                Dictionary<string, string> notificationSettings = GetSettingsByGroup("Notifications");
+                
+                // تعبئة البيانات
+                // إعدادات تفعيل الإشعارات
+                settings.EnableNotifications = GetSettingFromDictionaryBool(notificationSettings, "EnableNotifications", true);
+                settings.EnableEmailNotifications = GetSettingFromDictionaryBool(notificationSettings, "EnableEmailNotifications", false);
+                settings.EnableSMSNotifications = GetSettingFromDictionaryBool(notificationSettings, "EnableSMSNotifications", false);
+                settings.EnableSystemNotifications = GetSettingFromDictionaryBool(notificationSettings, "EnableSystemNotifications", true);
+                
+                // إعدادات الإشعارات حسب النوع
+                settings.NotifyOnNewLeaveRequest = GetSettingFromDictionaryBool(notificationSettings, "NotifyOnNewLeaveRequest", true);
+                settings.NotifyOnLeaveRequestApproved = GetSettingFromDictionaryBool(notificationSettings, "NotifyOnLeaveRequestApproved", true);
+                settings.NotifyOnLeaveRequestRejected = GetSettingFromDictionaryBool(notificationSettings, "NotifyOnLeaveRequestRejected", true);
+                settings.NotifyOnNewEmployee = GetSettingFromDictionaryBool(notificationSettings, "NotifyOnNewEmployee", true);
+                settings.NotifyOnEmployeeTermination = GetSettingFromDictionaryBool(notificationSettings, "NotifyOnEmployeeTermination", true);
+                settings.NotifyOnAttendanceIssue = GetSettingFromDictionaryBool(notificationSettings, "NotifyOnAttendanceIssue", true);
+                settings.NotifyOnSalaryIssue = GetSettingFromDictionaryBool(notificationSettings, "NotifyOnSalaryIssue", true);
+                
+                // إعدادات مستوى الإشعارات
+                int notificationLevel = GetSettingFromDictionaryInt(notificationSettings, "NotificationLevel", 1);
+                settings.NotificationLevel = (NotificationLevel)notificationLevel;
+                
+                // إعدادات توقيت الإشعارات
+                settings.DailyNotificationHour = GetSettingFromDictionaryInt(notificationSettings, "DailyNotificationHour", 9);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "حدث خطأ أثناء استرجاع إعدادات الإشعارات");
+            }
+            
+            return settings;
+        }
+        
+        /// <summary>
+        /// حفظ إعدادات الإشعارات
+        /// </summary>
+        /// <param name="settings">كائن إعدادات الإشعارات</param>
+        /// <returns>نجاح العملية</returns>
+        public bool SaveNotificationSettings(NotificationSettings settings)
+        {
+            try
+            {
+                // إعدادات تفعيل الإشعارات
+                SaveSettingValue("EnableNotifications", settings.EnableNotifications.ToString(), "Notifications", "تفعيل الإشعارات", "Boolean");
+                SaveSettingValue("EnableEmailNotifications", settings.EnableEmailNotifications.ToString(), "Notifications", "تفعيل إشعارات البريد الإلكتروني", "Boolean");
+                SaveSettingValue("EnableSMSNotifications", settings.EnableSMSNotifications.ToString(), "Notifications", "تفعيل إشعارات الرسائل النصية", "Boolean");
+                SaveSettingValue("EnableSystemNotifications", settings.EnableSystemNotifications.ToString(), "Notifications", "تفعيل إشعارات النظام", "Boolean");
+                
+                // إعدادات الإشعارات حسب النوع
+                SaveSettingValue("NotifyOnNewLeaveRequest", settings.NotifyOnNewLeaveRequest.ToString(), "Notifications", "إشعار عند طلب إجازة جديد", "Boolean");
+                SaveSettingValue("NotifyOnLeaveRequestApproved", settings.NotifyOnLeaveRequestApproved.ToString(), "Notifications", "إشعار عند قبول طلب الإجازة", "Boolean");
+                SaveSettingValue("NotifyOnLeaveRequestRejected", settings.NotifyOnLeaveRequestRejected.ToString(), "Notifications", "إشعار عند رفض طلب الإجازة", "Boolean");
+                SaveSettingValue("NotifyOnNewEmployee", settings.NotifyOnNewEmployee.ToString(), "Notifications", "إشعار عند إضافة موظف جديد", "Boolean");
+                SaveSettingValue("NotifyOnEmployeeTermination", settings.NotifyOnEmployeeTermination.ToString(), "Notifications", "إشعار عند إنهاء خدمة موظف", "Boolean");
+                SaveSettingValue("NotifyOnAttendanceIssue", settings.NotifyOnAttendanceIssue.ToString(), "Notifications", "إشعار عند مشكلة في الحضور", "Boolean");
+                SaveSettingValue("NotifyOnSalaryIssue", settings.NotifyOnSalaryIssue.ToString(), "Notifications", "إشعار عند مشكلة في الراتب", "Boolean");
+                
+                // إعدادات مستوى الإشعارات
+                SaveSettingValue("NotificationLevel", ((int)settings.NotificationLevel).ToString(), "Notifications", "مستوى الإشعارات", "Int32");
+                
+                // إعدادات توقيت الإشعارات
+                SaveSettingValue("DailyNotificationHour", settings.DailyNotificationHour.ToString(), "Notifications", "ساعة الإشعار اليومي", "Int32");
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "حدث خطأ أثناء حفظ إعدادات الإشعارات");
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// الحصول على إعدادات قواعد الحضور والانصراف
+        /// </summary>
+        /// <returns>كائن إعدادات قواعد الحضور والانصراف</returns>
+        public AttendanceRulesSettings GetAttendanceRulesSettings()
+        {
+            AttendanceRulesSettings settings = new AttendanceRulesSettings();
+            
+            try
+            {
+                // استرجاع إعدادات المجموعة
+                Dictionary<string, string> attendanceSettings = GetSettingsByGroup("AttendanceRules");
+                
+                // تعبئة البيانات
+                // قواعد الغياب
+                settings.AbsentDaysDeduction = GetSettingFromDictionaryDecimal(attendanceSettings, "AbsentDaysDeduction", 1.0m);
+                settings.MaxAllowedAbsentDays = GetSettingFromDictionaryInt(attendanceSettings, "MaxAllowedAbsentDays", 5);
+                
+                // قواعد التأخير
+                settings.LateArrivalPenaltyEnabled = GetSettingFromDictionaryBool(attendanceSettings, "LateArrivalPenaltyEnabled", true);
+                settings.LateArrivalGraceMinutes = GetSettingFromDictionaryInt(attendanceSettings, "LateArrivalGraceMinutes", 15);
+                settings.LateArrivalPenaltyPerMinute = GetSettingFromDictionaryDecimal(attendanceSettings, "LateArrivalPenaltyPerMinute", 0.5m);
+                settings.LateArrivalMaxPenaltyPerDay = GetSettingFromDictionaryDecimal(attendanceSettings, "LateArrivalMaxPenaltyPerDay", 0.25m);
+                
+                // قواعد المغادرة المبكرة
+                settings.EarlyDeparturePenaltyEnabled = GetSettingFromDictionaryBool(attendanceSettings, "EarlyDeparturePenaltyEnabled", true);
+                settings.EarlyDepartureGraceMinutes = GetSettingFromDictionaryInt(attendanceSettings, "EarlyDepartureGraceMinutes", 15);
+                settings.EarlyDeparturePenaltyPerMinute = GetSettingFromDictionaryDecimal(attendanceSettings, "EarlyDeparturePenaltyPerMinute", 0.5m);
+                settings.EarlyDepartureMaxPenaltyPerDay = GetSettingFromDictionaryDecimal(attendanceSettings, "EarlyDepartureMaxPenaltyPerDay", 0.25m);
+                
+                // إعدادات احتساب العمل الإضافي
+                settings.OvertimeEnabled = GetSettingFromDictionaryBool(attendanceSettings, "OvertimeEnabled", true);
+                settings.OvertimeStartAfterMinutes = GetSettingFromDictionaryInt(attendanceSettings, "OvertimeStartAfterMinutes", 15);
+                settings.OvertimeMultiplier = GetSettingFromDictionaryDecimal(attendanceSettings, "OvertimeMultiplier", 1.25m);
+                settings.WeekendOvertimeMultiplier = GetSettingFromDictionaryDecimal(attendanceSettings, "WeekendOvertimeMultiplier", 1.5m);
+                settings.HolidayOvertimeMultiplier = GetSettingFromDictionaryDecimal(attendanceSettings, "HolidayOvertimeMultiplier", 2.0m);
+                
+                // إعدادات التصاريح
+                settings.MaxPermissionsPerMonth = GetSettingFromDictionaryInt(attendanceSettings, "MaxPermissionsPerMonth", 2);
+                settings.MaxPermissionMinutesPerDay = GetSettingFromDictionaryInt(attendanceSettings, "MaxPermissionMinutesPerDay", 120);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "حدث خطأ أثناء استرجاع إعدادات قواعد الحضور والانصراف");
+            }
+            
+            return settings;
+        }
+        
+        /// <summary>
+        /// حفظ إعدادات قواعد الحضور والانصراف
+        /// </summary>
+        /// <param name="settings">كائن إعدادات قواعد الحضور والانصراف</param>
+        /// <returns>نجاح العملية</returns>
+        public bool SaveAttendanceRulesSettings(AttendanceRulesSettings settings)
+        {
+            try
+            {
+                // قواعد الغياب
+                SaveSettingValue("AbsentDaysDeduction", settings.AbsentDaysDeduction.ToString(), "AttendanceRules", "عدد أيام الخصم عن اليوم الغياب", "Decimal");
+                SaveSettingValue("MaxAllowedAbsentDays", settings.MaxAllowedAbsentDays.ToString(), "AttendanceRules", "الحد الأقصى لأيام الغياب المسموح بها في الشهر", "Int32");
+                
+                // قواعد التأخير
+                SaveSettingValue("LateArrivalPenaltyEnabled", settings.LateArrivalPenaltyEnabled.ToString(), "AttendanceRules", "تفعيل خصم التأخير", "Boolean");
+                SaveSettingValue("LateArrivalGraceMinutes", settings.LateArrivalGraceMinutes.ToString(), "AttendanceRules", "دقائق السماح للتأخير", "Int32");
+                SaveSettingValue("LateArrivalPenaltyPerMinute", settings.LateArrivalPenaltyPerMinute.ToString(), "AttendanceRules", "مقدار الخصم لكل دقيقة تأخير", "Decimal");
+                SaveSettingValue("LateArrivalMaxPenaltyPerDay", settings.LateArrivalMaxPenaltyPerDay.ToString(), "AttendanceRules", "الحد الأقصى للخصم اليومي بسبب التأخير", "Decimal");
+                
+                // قواعد المغادرة المبكرة
+                SaveSettingValue("EarlyDeparturePenaltyEnabled", settings.EarlyDeparturePenaltyEnabled.ToString(), "AttendanceRules", "تفعيل خصم المغادرة المبكرة", "Boolean");
+                SaveSettingValue("EarlyDepartureGraceMinutes", settings.EarlyDepartureGraceMinutes.ToString(), "AttendanceRules", "دقائق السماح للمغادرة المبكرة", "Int32");
+                SaveSettingValue("EarlyDeparturePenaltyPerMinute", settings.EarlyDeparturePenaltyPerMinute.ToString(), "AttendanceRules", "مقدار الخصم لكل دقيقة مغادرة مبكرة", "Decimal");
+                SaveSettingValue("EarlyDepartureMaxPenaltyPerDay", settings.EarlyDepartureMaxPenaltyPerDay.ToString(), "AttendanceRules", "الحد الأقصى للخصم اليومي بسبب المغادرة المبكرة", "Decimal");
+                
+                // إعدادات احتساب العمل الإضافي
+                SaveSettingValue("OvertimeEnabled", settings.OvertimeEnabled.ToString(), "AttendanceRules", "تفعيل احتساب العمل الإضافي", "Boolean");
+                SaveSettingValue("OvertimeStartAfterMinutes", settings.OvertimeStartAfterMinutes.ToString(), "AttendanceRules", "بدء احتساب العمل الإضافي بعد عدد دقائق", "Int32");
+                SaveSettingValue("OvertimeMultiplier", settings.OvertimeMultiplier.ToString(), "AttendanceRules", "مضاعف العمل الإضافي", "Decimal");
+                SaveSettingValue("WeekendOvertimeMultiplier", settings.WeekendOvertimeMultiplier.ToString(), "AttendanceRules", "مضاعف العمل الإضافي في نهاية الأسبوع", "Decimal");
+                SaveSettingValue("HolidayOvertimeMultiplier", settings.HolidayOvertimeMultiplier.ToString(), "AttendanceRules", "مضاعف العمل الإضافي في العطلات", "Decimal");
+                
+                // إعدادات التصاريح
+                SaveSettingValue("MaxPermissionsPerMonth", settings.MaxPermissionsPerMonth.ToString(), "AttendanceRules", "الحد الأقصى للتصاريح في الشهر", "Int32");
+                SaveSettingValue("MaxPermissionMinutesPerDay", settings.MaxPermissionMinutesPerDay.ToString(), "AttendanceRules", "الحد الأقصى لدقائق التصريح في اليوم", "Int32");
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "حدث خطأ أثناء حفظ إعدادات قواعد الحضور والانصراف");
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// الحصول على قيمة عددية عشرية من القاموس
+        /// </summary>
+        private double GetSettingFromDictionaryDouble(Dictionary<string, string> settings, string key, double defaultValue)
+        {
+            if (settings.ContainsKey(key))
+            {
+                double result;
+                if (double.TryParse(settings[key], out result))
+                {
+                    return result;
+                }
+            }
+            
+            return defaultValue;
+        }
+        
         #region Helper Methods
         
         private string GetSettingFromDictionary(Dictionary<string, string> settings, string key, string defaultValue)
