@@ -1,932 +1,568 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
+using HR.DataAccess;
 using HR.Models;
 
 namespace HR.Core.ZKTeco
 {
     /// <summary>
     /// مدير أجهزة البصمة ZKTeco
-    /// مسؤول عن إدارة أجهزة البصمة ومزامنة البيانات
     /// </summary>
     public class ZKTecoDeviceManager
     {
-        private readonly UnitOfWork _unitOfWork;
-        private static ZKTecoDeviceManager _instance;
-        private static readonly object _lockObject = new object();
-        private bool _isSyncing;
-        private CancellationTokenSource _syncCancellationTokenSource;
+        private readonly BiometricDeviceRepository _deviceRepository;
+        private readonly List<ZKTecoDevice> _connectedDevices;
         
         /// <summary>
-        /// الحصول على نسخة من مدير الأجهزة (Singleton)
+        /// إنشاء مدير أجهزة بصمة جديد
         /// </summary>
-        public static ZKTecoDeviceManager Instance
+        public ZKTecoDeviceManager()
         {
-            get
-            {
-                if (_instance == null)
-                {
-                    lock (_lockObject)
-                    {
-                        if (_instance == null)
-                        {
-                            _instance = new ZKTecoDeviceManager();
-                        }
-                    }
-                }
-                
-                return _instance;
-            }
+            _deviceRepository = new BiometricDeviceRepository();
+            _connectedDevices = new List<ZKTecoDevice>();
         }
         
         /// <summary>
-        /// منشئ خاص للفئة
-        /// </summary>
-        private ZKTecoDeviceManager()
-        {
-            _unitOfWork = new UnitOfWork();
-            _isSyncing = false;
-            _syncCancellationTokenSource = new CancellationTokenSource();
-        }
-        
-        /// <summary>
-        /// الحصول على قائمة الأجهزة المسجلة في النظام
+        /// الحصول على قائمة أجهزة البصمة المسجلة
         /// </summary>
         /// <returns>قائمة الأجهزة</returns>
-        public List<BiometricDevice> GetDevices()
+        public List<BiometricDevice> GetRegisteredDevices()
         {
-            try
-            {
-                return _unitOfWork.BiometricDeviceRepository.GetAllDevices();
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل في الحصول على قائمة أجهزة البصمة");
-                return new List<BiometricDevice>();
-            }
+            return _deviceRepository.GetAllDevices();
         }
         
         /// <summary>
-        /// الحصول على بيانات جهاز محدد
-        /// </summary>
-        /// <param name="deviceId">معرف الجهاز</param>
-        /// <returns>بيانات الجهاز</returns>
-        public BiometricDevice GetDevice(int deviceId)
-        {
-            try
-            {
-                return _unitOfWork.BiometricDeviceRepository.GetDeviceById(deviceId);
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, $"فشل في الحصول على بيانات جهاز البصمة {deviceId}");
-                return null;
-            }
-        }
-        
-        /// <summary>
-        /// إضافة جهاز جديد
+        /// إضافة جهاز بصمة جديد
         /// </summary>
         /// <param name="device">بيانات الجهاز</param>
-        /// <returns>نجاح العملية</returns>
-        public bool AddDevice(BiometricDevice device)
+        /// <returns>رقم الجهاز</returns>
+        public int AddDevice(BiometricDevice device)
         {
-            try
-            {
-                device.CreatedAt = DateTime.Now;
-                device.CreatedBy = SessionManager.CurrentUser.ID;
-                
-                // اختبار الاتصال بالجهاز
-                var testResult = TestConnection(device.IPAddress, device.Port);
-                
-                if (!testResult.IsSuccess)
-                {
-                    LogManager.LogWarning($"فشل اختبار الاتصال بالجهاز: {testResult.Message}");
-                    // نضيف الجهاز حتى لو فشل الاتصال، ولكن نعلم المستخدم
-                }
-                
-                // إضافة الجهاز إلى قاعدة البيانات
-                int id = _unitOfWork.BiometricDeviceRepository.AddDevice(device);
-                
-                return id > 0;
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "فشل في إضافة جهاز بصمة جديد");
-                return false;
-            }
+            return _deviceRepository.AddDevice(device);
         }
         
         /// <summary>
         /// تحديث بيانات جهاز
         /// </summary>
         /// <param name="device">بيانات الجهاز</param>
-        /// <returns>نجاح العملية</returns>
+        /// <returns>نتيجة التحديث</returns>
         public bool UpdateDevice(BiometricDevice device)
         {
-            try
-            {
-                var existingDevice = _unitOfWork.BiometricDeviceRepository.GetDeviceById(device.ID);
-                
-                if (existingDevice == null)
-                {
-                    LogManager.LogWarning($"لم يتم العثور على جهاز البصمة {device.ID}");
-                    return false;
-                }
-                
-                // هل تم تغيير بيانات الاتصال؟
-                bool connectionInfoChanged = existingDevice.IPAddress != device.IPAddress || existingDevice.Port != device.Port;
-                
-                if (connectionInfoChanged)
-                {
-                    // اختبار الاتصال بالجهاز بالبيانات الجديدة
-                    var testResult = TestConnection(device.IPAddress, device.Port);
-                    
-                    if (!testResult.IsSuccess)
-                    {
-                        LogManager.LogWarning($"فشل اختبار الاتصال بالجهاز بالبيانات الجديدة: {testResult.Message}");
-                        // نحدث الجهاز حتى لو فشل الاتصال، ولكن نعلم المستخدم
-                    }
-                }
-                
-                return _unitOfWork.BiometricDeviceRepository.UpdateDevice(device);
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, $"فشل في تحديث بيانات جهاز البصمة {device.ID}");
-                return false;
-            }
+            return _deviceRepository.UpdateDevice(device);
         }
         
         /// <summary>
         /// حذف جهاز
         /// </summary>
-        /// <param name="deviceId">معرف الجهاز</param>
-        /// <returns>نجاح العملية</returns>
-        public bool DeleteDevice(int deviceId)
+        /// <param name="deviceID">رقم الجهاز</param>
+        /// <returns>نتيجة الحذف</returns>
+        public bool DeleteDevice(int deviceID)
+        {
+            return _deviceRepository.DeleteDevice(deviceID);
+        }
+        
+        /// <summary>
+        /// الاتصال بجهاز
+        /// </summary>
+        /// <param name="deviceID">رقم الجهاز</param>
+        /// <returns>نتيجة الاتصال</returns>
+        public bool ConnectDevice(int deviceID)
         {
             try
             {
-                return _unitOfWork.BiometricDeviceRepository.DeleteDevice(deviceId);
+                // الحصول على بيانات الجهاز
+                BiometricDevice device = _deviceRepository.GetDeviceByID(deviceID);
+                if (device == null)
+                {
+                    LogManager.LogError($"لم يتم العثور على جهاز البصمة رقم {deviceID}");
+                    return false;
+                }
+                
+                // التحقق مما إذا كان الجهاز متصل بالفعل
+                if (_connectedDevices.Any(d => d.DeviceID == deviceID))
+                {
+                    LogManager.LogInfo($"جهاز البصمة {device.DeviceName} متصل بالفعل");
+                    return true;
+                }
+                
+                // إنشاء اتصال جديد بالجهاز
+                ZKTecoDevice zkDevice = new ZKTecoDevice(device);
+                bool result = zkDevice.Connect();
+                
+                if (result)
+                {
+                    // إضافة الجهاز إلى قائمة الأجهزة المتصلة
+                    _connectedDevices.Add(zkDevice);
+                    
+                    // تحديث حالة الجهاز في قاعدة البيانات
+                    device.LastConnection = DateTime.Now;
+                    device.ConnectionStatus = "Connected";
+                    _deviceRepository.UpdateDevice(device);
+                    
+                    LogManager.LogInfo($"تم الاتصال بجهاز البصمة {device.DeviceName} بنجاح");
+                    return true;
+                }
+                else
+                {
+                    // تحديث حالة الجهاز في قاعدة البيانات
+                    device.ConnectionStatus = "Disconnected";
+                    device.LastError = "فشل الاتصال بالجهاز";
+                    _deviceRepository.UpdateDevice(device);
+                    
+                    LogManager.LogError($"فشل الاتصال بجهاز البصمة {device.DeviceName}");
+                    return false;
+                }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, $"فشل في حذف جهاز البصمة {deviceId}");
+                LogManager.LogException(ex, $"حدث خطأ أثناء الاتصال بجهاز البصمة رقم {deviceID}");
                 return false;
             }
         }
         
         /// <summary>
-        /// اختبار الاتصال بجهاز
+        /// قطع الاتصال بجهاز
         /// </summary>
-        /// <param name="ipAddress">عنوان IP</param>
-        /// <param name="port">المنفذ</param>
-        /// <returns>نتيجة الاختبار</returns>
-        public ConnectionTestResult TestConnection(string ipAddress, int port = 4370)
+        /// <param name="deviceID">رقم الجهاز</param>
+        /// <returns>نتيجة قطع الاتصال</returns>
+        public bool DisconnectDevice(int deviceID)
         {
             try
             {
-                using (var device = new ZKTecoDevice(ipAddress, port))
+                // البحث عن الجهاز في قائمة الأجهزة المتصلة
+                ZKTecoDevice zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
+                if (zkDevice == null)
                 {
-                    if (!device.Connect())
+                    LogManager.LogWarning($"جهاز البصمة رقم {deviceID} غير متصل حالياً");
+                    return true;
+                }
+                
+                // قطع الاتصال بالجهاز
+                bool result = zkDevice.Disconnect();
+                
+                if (result)
+                {
+                    // إزالة الجهاز من قائمة الأجهزة المتصلة
+                    _connectedDevices.Remove(zkDevice);
+                    
+                    // تحديث حالة الجهاز في قاعدة البيانات
+                    BiometricDevice device = _deviceRepository.GetDeviceByID(deviceID);
+                    if (device != null)
                     {
-                        return new ConnectionTestResult
-                        {
-                            IsSuccess = false,
-                            Message = "فشل الاتصال بالجهاز",
-                            DeviceInfo = null
-                        };
+                        device.ConnectionStatus = "Disconnected";
+                        _deviceRepository.UpdateDevice(device);
                     }
                     
-                    var info = device.GetDeviceInfo();
-                    
-                    if (info == null)
-                    {
-                        return new ConnectionTestResult
-                        {
-                            IsSuccess = true,
-                            Message = "تم الاتصال بالجهاز، ولكن فشل في الحصول على معلومات الجهاز",
-                            DeviceInfo = null
-                        };
-                    }
-                    
-                    return new ConnectionTestResult
-                    {
-                        IsSuccess = true,
-                        Message = "تم الاتصال بالجهاز بنجاح",
-                        DeviceInfo = info
-                    };
+                    LogManager.LogInfo($"تم قطع الاتصال بجهاز البصمة رقم {deviceID} بنجاح");
+                    return true;
+                }
+                else
+                {
+                    LogManager.LogError($"فشل قطع الاتصال بجهاز البصمة رقم {deviceID}");
+                    return false;
                 }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, $"حدث خطأ أثناء اختبار الاتصال بالجهاز {ipAddress}:{port}");
-                
-                return new ConnectionTestResult
-                {
-                    IsSuccess = false,
-                    Message = $"حدث خطأ: {ex.Message}",
-                    DeviceInfo = null
-                };
+                LogManager.LogException(ex, $"حدث خطأ أثناء قطع الاتصال بجهاز البصمة رقم {deviceID}");
+                return false;
             }
         }
         
         /// <summary>
-        /// مزامنة بيانات المستخدمين من جهاز محدد
+        /// استيراد سجلات الحضور من جهاز
         /// </summary>
-        /// <param name="deviceId">معرف الجهاز</param>
+        /// <param name="deviceID">رقم الجهاز</param>
+        /// <returns>عدد السجلات المستوردة</returns>
+        public int ImportAttendanceRecords(int deviceID)
+        {
+            try
+            {
+                // التحقق من اتصال الجهاز
+                ZKTecoDevice zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
+                if (zkDevice == null)
+                {
+                    // محاولة الاتصال بالجهاز
+                    bool connected = ConnectDevice(deviceID);
+                    if (!connected)
+                    {
+                        LogManager.LogError($"فشل الاتصال بجهاز البصمة رقم {deviceID}");
+                        return 0;
+                    }
+                    
+                    zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
+                }
+                
+                // استيراد سجلات الحضور
+                List<RawAttendanceLog> logs = zkDevice.GetAttendanceLogs();
+                
+                if (logs == null || logs.Count == 0)
+                {
+                    LogManager.LogInfo($"لم يتم العثور على سجلات حضور جديدة في جهاز البصمة رقم {deviceID}");
+                    return 0;
+                }
+                
+                // حفظ السجلات في قاعدة البيانات
+                int count = 0;
+                foreach (RawAttendanceLog log in logs)
+                {
+                    // التحقق من عدم وجود السجل مسبقاً
+                    if (!_deviceRepository.AttendanceLogExists(log.DeviceID, log.UserID, log.LogTime))
+                    {
+                        int id = _deviceRepository.AddAttendanceLog(log);
+                        if (id > 0)
+                        {
+                            count++;
+                        }
+                    }
+                }
+                
+                // تحديث وقت آخر استيراد في بيانات الجهاز
+                BiometricDevice device = _deviceRepository.GetDeviceByID(deviceID);
+                if (device != null)
+                {
+                    device.LastDownload = DateTime.Now;
+                    _deviceRepository.UpdateDevice(device);
+                }
+                
+                LogManager.LogInfo($"تم استيراد {count} سجل حضور من جهاز البصمة رقم {deviceID}");
+                return count;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"حدث خطأ أثناء استيراد سجلات الحضور من جهاز البصمة رقم {deviceID}");
+                return 0;
+            }
+        }
+        
+        /// <summary>
+        /// مزامنة بيانات المستخدمين مع الجهاز
+        /// </summary>
+        /// <param name="deviceID">رقم الجهاز</param>
         /// <returns>نتيجة المزامنة</returns>
-        public SyncResult SyncUsers(int deviceId)
+        public bool SynchronizeUsers(int deviceID)
         {
-            BiometricDevice device = _unitOfWork.BiometricDeviceRepository.GetDeviceById(deviceId);
-            
-            if (device == null)
-            {
-                return new SyncResult
-                {
-                    IsSuccess = false,
-                    Message = $"لم يتم العثور على الجهاز {deviceId}",
-                    TotalRecords = 0,
-                    NewRecords = 0,
-                    ErrorRecords = 0
-                };
-            }
-            
             try
             {
-                using (var zkDevice = new ZKTecoDevice(device.IPAddress, device.Port ?? 4370))
+                // التحقق من اتصال الجهاز
+                ZKTecoDevice zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
+                if (zkDevice == null)
                 {
-                    if (!zkDevice.Connect())
+                    // محاولة الاتصال بالجهاز
+                    bool connected = ConnectDevice(deviceID);
+                    if (!connected)
                     {
-                        return new SyncResult
-                        {
-                            IsSuccess = false,
-                            Message = $"فشل الاتصال بالجهاز {device.DeviceName} ({device.IPAddress})",
-                            TotalRecords = 0,
-                            NewRecords = 0,
-                            ErrorRecords = 0
-                        };
+                        LogManager.LogError($"فشل الاتصال بجهاز البصمة رقم {deviceID}");
+                        return false;
                     }
                     
-                    // الحصول على قائمة المستخدمين من الجهاز
-                    var biometricUsers = zkDevice.GetUsers();
-                    
-                    if (biometricUsers == null || biometricUsers.Count == 0)
-                    {
-                        return new SyncResult
-                        {
-                            IsSuccess = false,
-                            Message = "لم يتم العثور على مستخدمين في الجهاز",
-                            TotalRecords = 0,
-                            NewRecords = 0,
-                            ErrorRecords = 0
-                        };
-                    }
-                    
-                    // تحديث بيانات المستخدمين في قاعدة البيانات
-                    int newUsers = 0;
-                    int errorUsers = 0;
-                    
-                    foreach (var biometricUser in biometricUsers)
-                    {
-                        try
-                        {
-                            bool result = _unitOfWork.BiometricDeviceRepository.UpdateOrAddDeviceUser(
-                                deviceId,
-                                biometricUser.EnrollNumber,
-                                biometricUser.Name,
-                                biometricUser.Enabled);
-                                
-                            if (result)
-                            {
-                                newUsers++;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            LogManager.LogException(ex, $"خطأ في تحديث بيانات المستخدم {biometricUser.EnrollNumber} في الجهاز {device.DeviceName}");
-                            errorUsers++;
-                        }
-                    }
-                    
-                    // تحديث وقت آخر مزامنة
-                    device.LastSyncTime = DateTime.Now;
-                    device.LastSyncStatus = "Users Sync Completed";
-                    _unitOfWork.BiometricDeviceRepository.UpdateDevice(device);
-                    
-                    return new SyncResult
-                    {
-                        IsSuccess = true,
-                        Message = $"تمت مزامنة بيانات المستخدمين من الجهاز {device.DeviceName} بنجاح",
-                        TotalRecords = biometricUsers.Count,
-                        NewRecords = newUsers,
-                        ErrorRecords = errorUsers
-                    };
+                    zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
                 }
+                
+                // الحصول على الموظفين النشطين
+                EmployeeRepository employeeRepo = new EmployeeRepository();
+                List<Employee> employees = employeeRepo.GetActiveEmployees();
+                
+                if (employees == null || employees.Count == 0)
+                {
+                    LogManager.LogWarning("لم يتم العثور على موظفين نشطين للمزامنة مع جهاز البصمة");
+                    return false;
+                }
+                
+                // مزامنة كل موظف مع الجهاز
+                int successCount = 0;
+                foreach (Employee employee in employees)
+                {
+                    // التحقق من وجود رقم بصمة للموظف
+                    if (string.IsNullOrEmpty(employee.BiometricID))
+                    {
+                        // إنشاء رقم بصمة جديد للموظف
+                        employee.BiometricID = employee.ID.ToString().PadLeft(8, '0');
+                        employeeRepo.UpdateEmployee(employee);
+                    }
+                    
+                    // مزامنة بيانات الموظف مع الجهاز
+                    bool result = zkDevice.AddOrUpdateUser(employee.BiometricID, employee.FullName);
+                    if (result)
+                    {
+                        successCount++;
+                    }
+                }
+                
+                // تحديث وقت آخر مزامنة في بيانات الجهاز
+                BiometricDevice device = _deviceRepository.GetDeviceByID(deviceID);
+                if (device != null)
+                {
+                    device.LastSync = DateTime.Now;
+                    _deviceRepository.UpdateDevice(device);
+                }
+                
+                LogManager.LogInfo($"تمت مزامنة {successCount} موظف من أصل {employees.Count} مع جهاز البصمة رقم {deviceID}");
+                return successCount > 0;
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, $"حدث خطأ أثناء مزامنة بيانات المستخدمين من الجهاز {device.DeviceName}");
-                
-                // تحديث حالة المزامنة
-                try
-                {
-                    device.LastSyncStatus = "Error";
-                    device.LastSyncErrors = ex.Message;
-                    _unitOfWork.BiometricDeviceRepository.UpdateDevice(device);
-                }
-                catch { /* تجاهل أي خطأ */ }
-                
-                return new SyncResult
-                {
-                    IsSuccess = false,
-                    Message = $"حدث خطأ: {ex.Message}",
-                    TotalRecords = 0,
-                    NewRecords = 0,
-                    ErrorRecords = 0
-                };
+                LogManager.LogException(ex, $"حدث خطأ أثناء مزامنة المستخدمين مع جهاز البصمة رقم {deviceID}");
+                return false;
             }
         }
         
         /// <summary>
-        /// مزامنة سجلات الحضور من جهاز محدد
+        /// تسجيل بصمة موظف
         /// </summary>
-        /// <param name="deviceId">معرف الجهاز</param>
-        /// <returns>نتيجة المزامنة</returns>
-        public SyncResult SyncAttendanceLogs(int deviceId)
+        /// <param name="deviceID">رقم الجهاز</param>
+        /// <param name="employeeID">رقم الموظف</param>
+        /// <returns>نتيجة التسجيل</returns>
+        public bool EnrollFingerprint(int deviceID, int employeeID)
         {
-            BiometricDevice device = _unitOfWork.BiometricDeviceRepository.GetDeviceById(deviceId);
-            
-            if (device == null)
-            {
-                return new SyncResult
-                {
-                    IsSuccess = false,
-                    Message = $"لم يتم العثور على الجهاز {deviceId}",
-                    TotalRecords = 0,
-                    NewRecords = 0,
-                    ErrorRecords = 0
-                };
-            }
-            
             try
             {
-                using (var zkDevice = new ZKTecoDevice(device.IPAddress, device.Port ?? 4370))
+                // التحقق من اتصال الجهاز
+                ZKTecoDevice zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
+                if (zkDevice == null)
                 {
-                    if (!zkDevice.Connect())
+                    // محاولة الاتصال بالجهاز
+                    bool connected = ConnectDevice(deviceID);
+                    if (!connected)
                     {
-                        return new SyncResult
-                        {
-                            IsSuccess = false,
-                            Message = $"فشل الاتصال بالجهاز {device.DeviceName} ({device.IPAddress})",
-                            TotalRecords = 0,
-                            NewRecords = 0,
-                            ErrorRecords = 0
-                        };
+                        LogManager.LogError($"فشل الاتصال بجهاز البصمة رقم {deviceID}");
+                        return false;
                     }
                     
-                    // الحصول على سجلات الحضور من الجهاز
-                    var logs = zkDevice.GetAttendanceLogs();
-                    
-                    if (logs == null || logs.Count == 0)
-                    {
-                        return new SyncResult
-                        {
-                            IsSuccess = false,
-                            Message = "لم يتم العثور على سجلات حضور في الجهاز",
-                            TotalRecords = 0,
-                            NewRecords = 0,
-                            ErrorRecords = 0
-                        };
-                    }
-                    
-                    // تحديث سجلات الحضور في قاعدة البيانات
-                    int newLogs = 0;
-                    int errorLogs = 0;
-                    
-                    foreach (var log in logs)
-                    {
-                        try
-                        {
-                            bool result = _unitOfWork.BiometricDeviceRepository.AddAttendanceLog(
-                                deviceId,
-                                log.EnrollNumber,
-                                log.LogTime,
-                                log.VerifyMode,
-                                log.InOutMode,
-                                log.WorkCode);
-                                
-                            if (result)
-                            {
-                                newLogs++;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            LogManager.LogException(ex, $"خطأ في إضافة سجل الحضور للمستخدم {log.EnrollNumber} في الجهاز {device.DeviceName}");
-                            errorLogs++;
-                        }
-                    }
-                    
-                    // تحديث وقت آخر مزامنة
-                    device.LastSyncTime = DateTime.Now;
-                    device.LastSyncStatus = "Attendance Sync Completed";
-                    _unitOfWork.BiometricDeviceRepository.UpdateDevice(device);
-                    
-                    return new SyncResult
-                    {
-                        IsSuccess = true,
-                        Message = $"تمت مزامنة سجلات الحضور من الجهاز {device.DeviceName} بنجاح",
-                        TotalRecords = logs.Count,
-                        NewRecords = newLogs,
-                        ErrorRecords = errorLogs
-                    };
+                    zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
+                }
+                
+                // الحصول على بيانات الموظف
+                EmployeeRepository employeeRepo = new EmployeeRepository();
+                Employee employee = employeeRepo.GetEmployeeByID(employeeID);
+                
+                if (employee == null)
+                {
+                    LogManager.LogError($"لم يتم العثور على الموظف رقم {employeeID}");
+                    return false;
+                }
+                
+                // التحقق من وجود رقم بصمة للموظف
+                if (string.IsNullOrEmpty(employee.BiometricID))
+                {
+                    // إنشاء رقم بصمة جديد للموظف
+                    employee.BiometricID = employee.ID.ToString().PadLeft(8, '0');
+                    employeeRepo.UpdateEmployee(employee);
+                }
+                
+                // بدء عملية تسجيل البصمة
+                bool result = zkDevice.EnrollFingerprint(employee.BiometricID, employee.FullName);
+                
+                if (result)
+                {
+                    LogManager.LogInfo($"تم تسجيل بصمة الموظف {employee.FullName} بنجاح على جهاز البصمة رقم {deviceID}");
+                    return true;
+                }
+                else
+                {
+                    LogManager.LogError($"فشل تسجيل بصمة الموظف {employee.FullName} على جهاز البصمة رقم {deviceID}");
+                    return false;
                 }
             }
             catch (Exception ex)
             {
-                LogManager.LogException(ex, $"حدث خطأ أثناء مزامنة سجلات الحضور من الجهاز {device.DeviceName}");
-                
-                // تحديث حالة المزامنة
-                try
-                {
-                    device.LastSyncStatus = "Error";
-                    device.LastSyncErrors = ex.Message;
-                    _unitOfWork.BiometricDeviceRepository.UpdateDevice(device);
-                }
-                catch { /* تجاهل أي خطأ */ }
-                
-                return new SyncResult
-                {
-                    IsSuccess = false,
-                    Message = $"حدث خطأ: {ex.Message}",
-                    TotalRecords = 0,
-                    NewRecords = 0,
-                    ErrorRecords = 0
-                };
+                LogManager.LogException(ex, $"حدث خطأ أثناء تسجيل بصمة الموظف رقم {employeeID} على جهاز البصمة رقم {deviceID}");
+                return false;
             }
         }
         
         /// <summary>
-        /// معالجة سجلات الحضور الخام وتحويلها إلى سجلات حضور
+        /// تحديث وقت الجهاز
         /// </summary>
-        /// <returns>نتيجة المعالجة</returns>
-        public ProcessResult ProcessAttendanceLogs()
+        /// <param name="deviceID">رقم الجهاز</param>
+        /// <returns>نتيجة التحديث</returns>
+        public bool SynchronizeTime(int deviceID)
+        {
+            try
+            {
+                // التحقق من اتصال الجهاز
+                ZKTecoDevice zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
+                if (zkDevice == null)
+                {
+                    // محاولة الاتصال بالجهاز
+                    bool connected = ConnectDevice(deviceID);
+                    if (!connected)
+                    {
+                        LogManager.LogError($"فشل الاتصال بجهاز البصمة رقم {deviceID}");
+                        return false;
+                    }
+                    
+                    zkDevice = _connectedDevices.FirstOrDefault(d => d.DeviceID == deviceID);
+                }
+                
+                // تحديث وقت الجهاز
+                bool result = zkDevice.SetDeviceTime(DateTime.Now);
+                
+                if (result)
+                {
+                    LogManager.LogInfo($"تم تحديث وقت جهاز البصمة رقم {deviceID} بنجاح");
+                    return true;
+                }
+                else
+                {
+                    LogManager.LogError($"فشل تحديث وقت جهاز البصمة رقم {deviceID}");
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, $"حدث خطأ أثناء تحديث وقت جهاز البصمة رقم {deviceID}");
+                return false;
+            }
+        }
+        
+        /// <summary>
+        /// استيراد سجلات الحضور من جميع الأجهزة
+        /// </summary>
+        /// <returns>عدد السجلات المستوردة</returns>
+        public int ImportAttendanceRecordsFromAllDevices()
+        {
+            try
+            {
+                // الحصول على قائمة الأجهزة النشطة
+                List<BiometricDevice> devices = _deviceRepository.GetActiveDevices();
+                
+                if (devices == null || devices.Count == 0)
+                {
+                    LogManager.LogWarning("لم يتم العثور على أجهزة بصمة نشطة");
+                    return 0;
+                }
+                
+                int totalCount = 0;
+                
+                // استيراد السجلات من كل جهاز
+                foreach (BiometricDevice device in devices)
+                {
+                    int count = ImportAttendanceRecords(device.ID);
+                    totalCount += count;
+                    
+                    // إضافة فترة انتظار بين كل جهاز وآخر
+                    Thread.Sleep(500);
+                }
+                
+                LogManager.LogInfo($"تم استيراد {totalCount} سجل حضور من {devices.Count} جهاز بصمة");
+                return totalCount;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "حدث خطأ أثناء استيراد سجلات الحضور من جميع الأجهزة");
+                return 0;
+            }
+        }
+        
+        /// <summary>
+        /// معالجة سجلات الحضور الخام
+        /// </summary>
+        /// <returns>عدد السجلات المعالجة</returns>
+        public int ProcessRawAttendanceLogs()
         {
             try
             {
                 // الحصول على السجلات الخام غير المعالجة
-                var rawLogs = _unitOfWork.BiometricDeviceRepository.GetUnprocessedAttendanceLogs();
+                List<RawAttendanceLog> rawLogs = _deviceRepository.GetUnprocessedAttendanceLogs();
                 
                 if (rawLogs == null || rawLogs.Count == 0)
                 {
-                    return new ProcessResult
-                    {
-                        IsSuccess = true,
-                        Message = "لا توجد سجلات خام جديدة للمعالجة",
-                        TotalRecords = 0,
-                        ProcessedRecords = 0,
-                        ErrorRecords = 0
-                    };
+                    LogManager.LogInfo("لا توجد سجلات حضور خام للمعالجة");
+                    return 0;
                 }
                 
-                // تنظيم السجلات حسب الموظف والتاريخ
-                var groupedLogs = rawLogs
-                    .Where(log => log.EmployeeID.HasValue)
-                    .GroupBy(log => new { EmployeeID = log.EmployeeID.Value, Date = log.LogDateTime.Date })
-                    .ToDictionary(
-                        g => g.Key,
-                        g => g.OrderBy(log => log.LogDateTime).ToList()
-                    );
+                int processedCount = 0;
                 
-                int processedRecords = 0;
-                int errorRecords = 0;
-                
-                // معالجة سجلات كل موظف في كل يوم
-                foreach (var entry in groupedLogs)
+                // معالجة كل سجل
+                foreach (RawAttendanceLog rawLog in rawLogs)
                 {
                     try
                     {
-                        var employeeID = entry.Key.EmployeeID;
-                        var date = entry.Key.Date;
-                        var logs = entry.Value;
+                        // البحث عن الموظف بواسطة رقم البصمة
+                        EmployeeRepository employeeRepo = new EmployeeRepository();
+                        Employee employee = employeeRepo.GetEmployeeByBiometricID(rawLog.UserID);
                         
-                        // الحصول على جدول العمل للموظف
-                        var workHours = _unitOfWork.EmployeeRepository.GetEmployeeWorkHoursForDate(employeeID, date);
-                        
-                        if (workHours == null)
+                        if (employee == null)
                         {
-                            LogManager.LogWarning($"لم يتم العثور على جدول عمل للموظف {employeeID} في التاريخ {date}");
+                            // تحديث حالة السجل إلى "خطأ"
+                            rawLog.ProcessingStatus = "Error";
+                            rawLog.ProcessingNotes = "لم يتم العثور على الموظف برقم البصمة " + rawLog.UserID;
+                            _deviceRepository.UpdateAttendanceLog(rawLog);
                             continue;
                         }
                         
-                        // تحديد وقت الدخول (أول بصمة في اليوم)
-                        var firstLog = logs.FirstOrDefault();
-                        var timeIn = firstLog?.LogDateTime;
-                        
-                        // تحديد وقت الخروج (آخر بصمة في اليوم)
-                        var lastLog = logs.LastOrDefault();
-                        var timeOut = (logs.Count > 1) ? lastLog?.LogDateTime : (DateTime?)null;
-                        
-                        // حساب التأخير والمغادرة المبكرة
-                        int lateMinutes = 0;
-                        int earlyDepartureMinutes = 0;
-                        int workedMinutes = 0;
-                        int overtimeMinutes = 0;
-                        string status = "حاضر";
-                        
-                        if (timeIn.HasValue && workHours.StartTime.HasValue)
+                        // إنشاء سجل حضور جديد
+                        AttendanceRecord record = new AttendanceRecord
                         {
-                            var expectedTimeIn = date.Add(workHours.StartTime.Value.TimeOfDay);
-                            if (timeIn.Value > expectedTimeIn)
-                            {
-                                lateMinutes = (int)(timeIn.Value - expectedTimeIn).TotalMinutes;
-                                status = "متأخر";
-                            }
-                        }
-                        
-                        if (timeOut.HasValue && workHours.EndTime.HasValue)
-                        {
-                            var expectedTimeOut = date.Add(workHours.EndTime.Value.TimeOfDay);
-                            if (timeOut.Value < expectedTimeOut)
-                            {
-                                earlyDepartureMinutes = (int)(expectedTimeOut - timeOut.Value).TotalMinutes;
-                                status = (lateMinutes > 0) ? "متأخر ومغادرة مبكرة" : "مغادرة مبكرة";
-                            }
-                        }
-                        
-                        if (timeIn.HasValue && timeOut.HasValue)
-                        {
-                            workedMinutes = (int)(timeOut.Value - timeIn.Value).TotalMinutes;
-                            
-                            if (workHours.TotalHours.HasValue)
-                            {
-                                var expectedMinutes = workHours.TotalHours.Value * 60;
-                                if (workedMinutes > expectedMinutes)
-                                {
-                                    overtimeMinutes = workedMinutes - expectedMinutes;
-                                }
-                            }
-                        }
-                        else if (timeIn.HasValue && !timeOut.HasValue)
-                        {
-                            status = "بدون تسجيل خروج";
-                        }
-                        
-                        // إنشاء سجل الحضور
-                        var attendanceRecord = new AttendanceRecord
-                        {
-                            EmployeeID = employeeID,
-                            AttendanceDate = date,
-                            TimeIn = timeIn,
-                            TimeOut = timeOut,
-                            WorkHoursID = workHours.ID,
-                            LateMinutes = lateMinutes,
-                            EarlyDepartureMinutes = earlyDepartureMinutes,
-                            OvertimeMinutes = overtimeMinutes,
-                            WorkedMinutes = workedMinutes,
-                            Status = status,
-                            IsManualEntry = false,
-                            CreatedAt = DateTime.Now,
-                            CreatedBy = SessionManager.CurrentUser?.ID ?? 1
+                            EmployeeID = employee.ID,
+                            LogDateTime = rawLog.LogTime,
+                            LogType = DetermineLogType(rawLog.LogTime),
+                            DeviceID = rawLog.DeviceID,
+                            Status = "Auto",
+                            Notes = $"تم إنشاؤه تلقائياً من سجل البصمة رقم {rawLog.ID}"
                         };
                         
-                        // التحقق من عدم وجود سجل سابق لنفس الموظف ونفس اليوم
-                        var existingRecord = _unitOfWork.AttendanceRepository.GetAttendanceRecordByEmployeeAndDate(employeeID, date);
+                        // حفظ سجل الحضور
+                        AttendanceRepository attendanceRepo = new AttendanceRepository();
+                        int recordID = attendanceRepo.AddAttendanceRecord(record);
                         
-                        if (existingRecord != null)
+                        if (recordID > 0)
                         {
-                            // تحديث السجل الموجود
-                            existingRecord.TimeIn = timeIn;
-                            existingRecord.TimeOut = timeOut;
-                            existingRecord.LateMinutes = lateMinutes;
-                            existingRecord.EarlyDepartureMinutes = earlyDepartureMinutes;
-                            existingRecord.OvertimeMinutes = overtimeMinutes;
-                            existingRecord.WorkedMinutes = workedMinutes;
-                            existingRecord.Status = status;
+                            // تحديث حالة السجل الخام
+                            rawLog.ProcessingStatus = "Processed";
+                            rawLog.ProcessingNotes = $"تمت معالجته وإنشاء سجل الحضور رقم {recordID}";
+                            _deviceRepository.UpdateAttendanceLog(rawLog);
                             
-                            _unitOfWork.AttendanceRepository.UpdateAttendanceRecord(existingRecord);
+                            processedCount++;
                         }
                         else
                         {
-                            // إضافة سجل جديد
-                            _unitOfWork.AttendanceRepository.AddAttendanceRecord(attendanceRecord);
+                            // تحديث حالة السجل إلى "خطأ"
+                            rawLog.ProcessingStatus = "Error";
+                            rawLog.ProcessingNotes = "فشل إنشاء سجل الحضور";
+                            _deviceRepository.UpdateAttendanceLog(rawLog);
                         }
-                        
-                        // تحديث حالة السجلات الخام
-                        foreach (var log in logs)
-                        {
-                            _unitOfWork.BiometricDeviceRepository.MarkAttendanceLogAsProcessed(log.ID);
-                        }
-                        
-                        processedRecords++;
                     }
                     catch (Exception ex)
                     {
-                        LogManager.LogException(ex, $"خطأ في معالجة سجلات الحضور للموظف {entry.Key.EmployeeID} في التاريخ {entry.Key.Date}");
-                        errorRecords++;
+                        // تحديث حالة السجل إلى "خطأ"
+                        rawLog.ProcessingStatus = "Error";
+                        rawLog.ProcessingNotes = $"حدث خطأ أثناء المعالجة: {ex.Message}";
+                        _deviceRepository.UpdateAttendanceLog(rawLog);
+                        
+                        LogManager.LogException(ex, $"حدث خطأ أثناء معالجة سجل الحضور الخام رقم {rawLog.ID}");
                     }
                 }
                 
-                return new ProcessResult
-                {
-                    IsSuccess = true,
-                    Message = "تمت معالجة سجلات الحضور الخام بنجاح",
-                    TotalRecords = groupedLogs.Count,
-                    ProcessedRecords = processedRecords,
-                    ErrorRecords = errorRecords
-                };
+                LogManager.LogInfo($"تمت معالجة {processedCount} سجل حضور من أصل {rawLogs.Count}");
+                return processedCount;
             }
             catch (Exception ex)
             {
                 LogManager.LogException(ex, "حدث خطأ أثناء معالجة سجلات الحضور الخام");
-                
-                return new ProcessResult
-                {
-                    IsSuccess = false,
-                    Message = $"حدث خطأ: {ex.Message}",
-                    TotalRecords = 0,
-                    ProcessedRecords = 0,
-                    ErrorRecords = 0
-                };
+                return 0;
             }
         }
         
         /// <summary>
-        /// مزامنة جميع أجهزة البصمة
+        /// تحديد نوع السجل بناءً على الوقت
         /// </summary>
-        /// <returns>نتيجة المزامنة</returns>
-        public async Task<SyncAllResult> SyncAllDevicesAsync()
+        /// <param name="logTime">وقت التسجيل</param>
+        /// <returns>نوع السجل (حضور/انصراف)</returns>
+        private string DetermineLogType(DateTime logTime)
         {
-            if (_isSyncing)
+            // افتراضياً، الأوقات قبل الظهر تعتبر حضور، والأوقات بعد الظهر تعتبر انصراف
+            if (logTime.Hour < 12)
             {
-                return new SyncAllResult
-                {
-                    IsSuccess = false,
-                    Message = "عملية المزامنة جارية بالفعل",
-                    DeviceResults = new List<DeviceSyncResult>()
-                };
+                return "CheckIn";
             }
-            
-            _isSyncing = true;
-            
-            try
+            else
             {
-                // إلغاء أي عملية مزامنة سابقة
-                if (_syncCancellationTokenSource != null)
-                {
-                    _syncCancellationTokenSource.Cancel();
-                }
-                
-                _syncCancellationTokenSource = new CancellationTokenSource();
-                var token = _syncCancellationTokenSource.Token;
-                
-                // الحصول على قائمة الأجهزة النشطة
-                var devices = _unitOfWork.BiometricDeviceRepository.GetActiveDevices();
-                
-                if (devices == null || devices.Count == 0)
-                {
-                    _isSyncing = false;
-                    return new SyncAllResult
-                    {
-                        IsSuccess = true,
-                        Message = "لا توجد أجهزة نشطة للمزامنة",
-                        DeviceResults = new List<DeviceSyncResult>()
-                    };
-                }
-                
-                List<DeviceSyncResult> results = new List<DeviceSyncResult>();
-                
-                // مزامنة كل جهاز على حدة
-                foreach (var device in devices)
-                {
-                    if (token.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                    
-                    var deviceResult = new DeviceSyncResult
-                    {
-                        DeviceId = device.ID,
-                        DeviceName = device.DeviceName,
-                        IPAddress = device.IPAddress
-                    };
-                    
-                    try
-                    {
-                        // مزامنة المستخدمين
-                        var usersResult = SyncUsers(device.ID);
-                        deviceResult.UsersSyncResult = usersResult;
-                        
-                        // مزامنة سجلات الحضور
-                        var logsResult = SyncAttendanceLogs(device.ID);
-                        deviceResult.LogsSyncResult = logsResult;
-                        
-                        deviceResult.IsSuccess = usersResult.IsSuccess || logsResult.IsSuccess;
-                        
-                        results.Add(deviceResult);
-                        
-                        // انتظار قليلاً قبل مزامنة الجهاز التالي
-                        await Task.Delay(1000, token);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogManager.LogException(ex, $"خطأ في مزامنة الجهاز {device.DeviceName}");
-                        
-                        deviceResult.IsSuccess = false;
-                        deviceResult.ErrorMessage = ex.Message;
-                        
-                        results.Add(deviceResult);
-                    }
-                }
-                
-                // معالجة سجلات الحضور
-                if (!token.IsCancellationRequested)
-                {
-                    var processResult = ProcessAttendanceLogs();
-                }
-                
-                return new SyncAllResult
-                {
-                    IsSuccess = true,
-                    Message = "تمت مزامنة الأجهزة بنجاح",
-                    DeviceResults = results
-                };
-            }
-            catch (Exception ex)
-            {
-                LogManager.LogException(ex, "حدث خطأ أثناء مزامنة أجهزة البصمة");
-                
-                return new SyncAllResult
-                {
-                    IsSuccess = false,
-                    Message = $"حدث خطأ: {ex.Message}",
-                    DeviceResults = new List<DeviceSyncResult>()
-                };
-            }
-            finally
-            {
-                _isSyncing = false;
+                return "CheckOut";
             }
         }
-        
-        /// <summary>
-        /// إلغاء عملية المزامنة الحالية
-        /// </summary>
-        public void CancelSync()
-        {
-            if (_isSyncing && _syncCancellationTokenSource != null)
-            {
-                _syncCancellationTokenSource.Cancel();
-            }
-        }
-    }
-    
-    /// <summary>
-    /// نتيجة اختبار الاتصال بجهاز البصمة
-    /// </summary>
-    public class ConnectionTestResult
-    {
-        /// <summary>
-        /// هل نجح الاختبار
-        /// </summary>
-        public bool IsSuccess { get; set; }
-        
-        /// <summary>
-        /// رسالة التوضيح
-        /// </summary>
-        public string Message { get; set; }
-        
-        /// <summary>
-        /// معلومات الجهاز
-        /// </summary>
-        public DeviceInfo DeviceInfo { get; set; }
-    }
-    
-    /// <summary>
-    /// نتيجة عملية المزامنة
-    /// </summary>
-    public class SyncResult
-    {
-        /// <summary>
-        /// هل نجحت المزامنة
-        /// </summary>
-        public bool IsSuccess { get; set; }
-        
-        /// <summary>
-        /// رسالة التوضيح
-        /// </summary>
-        public string Message { get; set; }
-        
-        /// <summary>
-        /// إجمالي عدد السجلات
-        /// </summary>
-        public int TotalRecords { get; set; }
-        
-        /// <summary>
-        /// عدد السجلات الجديدة
-        /// </summary>
-        public int NewRecords { get; set; }
-        
-        /// <summary>
-        /// عدد السجلات التي حدث فيها خطأ
-        /// </summary>
-        public int ErrorRecords { get; set; }
-    }
-    
-    /// <summary>
-    /// نتيجة معالجة سجلات الحضور
-    /// </summary>
-    public class ProcessResult
-    {
-        /// <summary>
-        /// هل نجحت المعالجة
-        /// </summary>
-        public bool IsSuccess { get; set; }
-        
-        /// <summary>
-        /// رسالة التوضيح
-        /// </summary>
-        public string Message { get; set; }
-        
-        /// <summary>
-        /// إجمالي عدد السجلات
-        /// </summary>
-        public int TotalRecords { get; set; }
-        
-        /// <summary>
-        /// عدد السجلات التي تمت معالجتها
-        /// </summary>
-        public int ProcessedRecords { get; set; }
-        
-        /// <summary>
-        /// عدد السجلات التي حدث فيها خطأ
-        /// </summary>
-        public int ErrorRecords { get; set; }
-    }
-    
-    /// <summary>
-    /// نتيجة مزامنة جهاز واحد
-    /// </summary>
-    public class DeviceSyncResult
-    {
-        /// <summary>
-        /// معرف الجهاز
-        /// </summary>
-        public int DeviceId { get; set; }
-        
-        /// <summary>
-        /// اسم الجهاز
-        /// </summary>
-        public string DeviceName { get; set; }
-        
-        /// <summary>
-        /// عنوان IP للجهاز
-        /// </summary>
-        public string IPAddress { get; set; }
-        
-        /// <summary>
-        /// هل نجحت المزامنة
-        /// </summary>
-        public bool IsSuccess { get; set; }
-        
-        /// <summary>
-        /// رسالة الخطأ
-        /// </summary>
-        public string ErrorMessage { get; set; }
-        
-        /// <summary>
-        /// نتيجة مزامنة المستخدمين
-        /// </summary>
-        public SyncResult UsersSyncResult { get; set; }
-        
-        /// <summary>
-        /// نتيجة مزامنة سجلات الحضور
-        /// </summary>
-        public SyncResult LogsSyncResult { get; set; }
-    }
-    
-    /// <summary>
-    /// نتيجة مزامنة جميع الأجهزة
-    /// </summary>
-    public class SyncAllResult
-    {
-        /// <summary>
-        /// هل نجحت المزامنة
-        /// </summary>
-        public bool IsSuccess { get; set; }
-        
-        /// <summary>
-        /// رسالة التوضيح
-        /// </summary>
-        public string Message { get; set; }
-        
-        /// <summary>
-        /// نتائج مزامنة الأجهزة
-        /// </summary>
-        public List<DeviceSyncResult> DeviceResults { get; set; }
     }
 }
