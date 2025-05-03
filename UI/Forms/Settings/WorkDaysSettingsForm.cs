@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Data.SqlClient;
 using System.Drawing;
 using System.Linq;
 using System.Text;
@@ -578,46 +579,118 @@ namespace HR.UI.Forms.Settings
         {
             try
             {
-                // استرجاع بيانات فترة العمل
-                // هذه طريقة مبسطة، في التطبيق الحقيقي سيتم استرجاع البيانات من قاعدة البيانات
-                
-                // استرجاع أيام العمل من إعدادات الورديات
-                // باستخدام ID فترة العمل
-                
-                // تقوم هذه الدالة بمحاكاة استيراد البيانات، في التطبيق الحقيقي ستكون البيانات من قاعدة البيانات
-                // فترات العمل في قاعدة البيانات موجودة بجدول WorkHours
-                
-                // في السيناريو الحقيقي، سنقوم بتحديث الإعدادات باستخدام بيانات من جدول فترات العمل
-                // وجدول ورديات العمل
-                
-                // محاكاة تحديث الإعدادات
-                TimeSpan startTime = new TimeSpan(8, 30, 0);
-                TimeSpan endTime = new TimeSpan(16, 30, 0);
-                
-                // تحديث أوقات الدوام
-                DateTime startDateTime = DateTime.Today.Add(startTime);
-                DateTime endDateTime = DateTime.Today.Add(endTime);
-                
-                // تحديث جميع الأيام بنفس الوقت للتبسيط
-                timeEditSaturdayStart.Time = startDateTime;
-                timeEditSaturdayEnd.Time = endDateTime;
-                timeEditSundayStart.Time = startDateTime;
-                timeEditSundayEnd.Time = endDateTime;
-                timeEditMondayStart.Time = startDateTime;
-                timeEditMondayEnd.Time = endDateTime;
-                timeEditTuesdayStart.Time = startDateTime;
-                timeEditTuesdayEnd.Time = endDateTime;
-                timeEditWednesdayStart.Time = startDateTime;
-                timeEditWednesdayEnd.Time = endDateTime;
-                timeEditThursdayStart.Time = startDateTime;
-                timeEditThursdayEnd.Time = endDateTime;
-                timeEditFridayStart.Time = startDateTime;
-                timeEditFridayEnd.Time = endDateTime;
-                
-                // تحديث دقائق السماح
-                spinEditGraceMinutes.Value = 15;
-                
-                return true;
+                // استرجاع بيانات فترة العمل من قاعدة البيانات
+                using (SqlConnection connection = new ConnectionManager().GetConnection())
+                {
+                    string query = @"
+                        SELECT 
+                            Name, 
+                            StartTime, 
+                            EndTime, 
+                            FlexibleMinutes, 
+                            LateThresholdMinutes, 
+                            ShortDayThresholdMinutes,
+                            OverTimeStartMinutes
+                        FROM WorkHours
+                        WHERE ID = @ID";
+                    
+                    SqlCommand command = new SqlCommand(query, connection);
+                    command.Parameters.AddWithValue("@ID", workHoursID);
+                    
+                    connection.Open();
+                    SqlDataReader reader = command.ExecuteReader();
+                    
+                    if (!reader.Read())
+                    {
+                        // لم يتم العثور على فترة العمل
+                        return false;
+                    }
+                    
+                    // استخراج البيانات من القارئ
+                    string name = reader["Name"].ToString();
+                    TimeSpan startTime = (TimeSpan)reader["StartTime"];
+                    TimeSpan endTime = (TimeSpan)reader["EndTime"];
+                    int flexibleMinutes = Convert.ToInt32(reader["FlexibleMinutes"]);
+                    
+                    // إغلاق القارئ
+                    reader.Close();
+                    
+                    // استرجاع أيام العمل من إعدادات الورديات (إن وجدت)
+                    query = @"
+                        SELECT 
+                            SundayEnabled, 
+                            MondayEnabled, 
+                            TuesdayEnabled, 
+                            WednesdayEnabled, 
+                            ThursdayEnabled,
+                            FridayEnabled,
+                            SaturdayEnabled
+                        FROM WorkShifts
+                        WHERE WorkHoursID = @WorkHoursID AND IsActive = 1";
+                    
+                    command = new SqlCommand(query, connection);
+                    command.Parameters.AddWithValue("@WorkHoursID", workHoursID);
+                    
+                    reader = command.ExecuteReader();
+                    
+                    // إعداد الأيام بناءً على قيم المناوبات، إذا وجدت
+                    if (reader.Read())
+                    {
+                        checkEditSunday.Checked = Convert.ToBoolean(reader["SundayEnabled"]);
+                        checkEditMonday.Checked = Convert.ToBoolean(reader["MondayEnabled"]);
+                        checkEditTuesday.Checked = Convert.ToBoolean(reader["TuesdayEnabled"]);
+                        checkEditWednesday.Checked = Convert.ToBoolean(reader["WednesdayEnabled"]);
+                        checkEditThursday.Checked = Convert.ToBoolean(reader["ThursdayEnabled"]);
+                        checkEditFriday.Checked = Convert.ToBoolean(reader["FridayEnabled"]);
+                        checkEditSaturday.Checked = Convert.ToBoolean(reader["SaturdayEnabled"]);
+                    }
+                    else
+                    {
+                        // إذا لم يتم العثور على أي مناوبة، نفترض أن هذه الفترة مطبقة على كل الأيام
+                        checkEditSunday.Checked = true;
+                        checkEditMonday.Checked = true;
+                        checkEditTuesday.Checked = true;
+                        checkEditWednesday.Checked = true;
+                        checkEditThursday.Checked = true;
+                        checkEditFriday.Checked = false; // نفترض أن الجمعة عطلة
+                        checkEditSaturday.Checked = true;
+                    }
+                    
+                    // تحديث أوقات الدوام
+                    DateTime startDateTime = DateTime.Today.Add(startTime);
+                    DateTime endDateTime = DateTime.Today.Add(endTime);
+                    
+                    // تحديث أوقات الدوام لكل يوم
+                    timeEditSaturdayStart.Time = startDateTime;
+                    timeEditSaturdayEnd.Time = endDateTime;
+                    timeEditSundayStart.Time = startDateTime;
+                    timeEditSundayEnd.Time = endDateTime;
+                    timeEditMondayStart.Time = startDateTime;
+                    timeEditMondayEnd.Time = endDateTime;
+                    timeEditTuesdayStart.Time = startDateTime;
+                    timeEditTuesdayEnd.Time = endDateTime;
+                    timeEditWednesdayStart.Time = startDateTime;
+                    timeEditWednesdayEnd.Time = endDateTime;
+                    timeEditThursdayStart.Time = startDateTime;
+                    timeEditThursdayEnd.Time = endDateTime;
+                    timeEditFridayStart.Time = startDateTime;
+                    timeEditFridayEnd.Time = endDateTime;
+                    
+                    // تحديث دقائق السماح
+                    spinEditGraceMinutes.Value = flexibleMinutes;
+                    
+                    // تحديث خيارات المرونة
+                    checkEditFlexibleStartTime.Checked = flexibleMinutes > 0;
+                    
+                    // تحديث حالة عناصر التحكم
+                    UpdateDayControlsState();
+                    
+                    // إضافة رسالة للمستخدم
+                    XtraMessageBox.Show($"تم استيراد إعدادات فترة العمل '{name}' بنجاح.", "استيراد الإعدادات",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    
+                    return true;
+                }
             }
             catch (Exception ex)
             {
