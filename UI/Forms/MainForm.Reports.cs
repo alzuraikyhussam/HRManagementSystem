@@ -1,212 +1,98 @@
-using DevExpress.XtraBars.Navigation;
-using DevExpress.XtraEditors;
-using HR.UI.Forms.Reports;
 using System;
 using System.Windows.Forms;
+using DevExpress.XtraEditors;
+using HR.Core;
 
 namespace HR.UI.Forms
 {
     /// <summary>
-    /// تطبيق نظام نماذج التقارير في النموذج الرئيسي
+    /// الجزء الخاص بوحدة التقارير في النموذج الرئيسي
     /// </summary>
     public partial class MainForm
     {
         /// <summary>
-        /// إعداد وحدة التقارير في القائمة الرئيسية
+        /// إعداد وحدة التقارير وإضافة العناصر إلى القائمة
         /// </summary>
         private void SetupReportsModule()
         {
             try
             {
-                // إضافة وحدة التقارير للقائمة الجانبية إذا لم تكن موجودة
-                AccordionControlElement reportsGroup = null;
+                // التأكد من أن قائمة عناصر التقارير فارغة
+                accordionControlReports.Elements.Clear();
                 
-                // التحقق من وجود وحدة التقارير
-                foreach (AccordionControlElement group in accordionControl.Elements)
-                {
-                    if (group.Tag != null && group.Tag.ToString() == "Reports")
-                    {
-                        reportsGroup = group;
-                        break;
-                    }
-                }
+                // إضافة أنواع التقارير المختلفة
                 
-                // إنشاء وحدة التقارير إذا لم تكن موجودة
-                if (reportsGroup == null)
-                {
-                    reportsGroup = new AccordionControlElement
-                    {
-                        Text = "التقارير",
-                        Style = ElementStyle.Group,
-                        Tag = "Reports",
-                        HeaderTemplate = new BottomElementTemplate()
-                    };
-                    
-                    // إضافة رمز للتقارير
-                    reportsGroup.ImageOptions.Image = Properties.Resources.reports;
-                    
-                    // إضافة الوحدة للقائمة
-                    accordionControl.Elements.Add(reportsGroup);
-                }
-                
-                // إضافة عناصر التقارير لوحدة التقارير
                 // تقرير الموظفين
-                AddReportItem(reportsGroup, "تقرير الموظفين", "EmployeeReport", Properties.Resources.employee_reports);
+                var employeesReport = new DevExpress.XtraBars.Navigation.AccordionControlElement()
+                {
+                    Name = "employeesReport",
+                    Text = "تقارير الموظفين",
+                    Style = DevExpress.XtraBars.Navigation.ElementStyle.Item
+                };
+                employeesReport.Click += (s, e) => ShowSpecificReport("Employees");
+                accordionControlReports.Elements.Add(employeesReport);
                 
-                // تقرير الحضور والغياب
-                AddReportItem(reportsGroup, "تقرير الحضور والغياب", "AttendanceReport", Properties.Resources.attendance_reports);
+                // تقرير الحضور والانصراف
+                var attendanceReport = new DevExpress.XtraBars.Navigation.AccordionControlElement()
+                {
+                    Name = "attendanceReport",
+                    Text = "تقارير الحضور والانصراف",
+                    Style = DevExpress.XtraBars.Navigation.ElementStyle.Item
+                };
+                attendanceReport.Click += (s, e) => ShowSpecificReport("Attendance");
+                accordionControlReports.Elements.Add(attendanceReport);
                 
                 // تقرير الإجازات
-                AddReportItem(reportsGroup, "تقرير الإجازات", "LeaveReport", Properties.Resources.leave_reports);
+                var leaveReport = new DevExpress.XtraBars.Navigation.AccordionControlElement()
+                {
+                    Name = "leaveReport",
+                    Text = "تقارير الإجازات",
+                    Style = DevExpress.XtraBars.Navigation.ElementStyle.Item
+                };
+                leaveReport.Click += (s, e) => ShowSpecificReport("Leave");
+                accordionControlReports.Elements.Add(leaveReport);
                 
                 // تقرير الرواتب
-                AddReportItem(reportsGroup, "تقرير الرواتب", "PayrollReport", Properties.Resources.payroll_reports);
+                var payrollReport = new DevExpress.XtraBars.Navigation.AccordionControlElement()
+                {
+                    Name = "payrollReport",
+                    Text = "تقارير الرواتب",
+                    Style = DevExpress.XtraBars.Navigation.ElementStyle.Item
+                };
+                payrollReport.Click += (s, e) => ShowSpecificReport("Payroll");
+                accordionControlReports.Elements.Add(payrollReport);
                 
                 // تقرير العمليات والمخالفات
-                AddReportItem(reportsGroup, "تقرير العمليات والمخالفات", "OperationsReport", Properties.Resources.operations_reports);
+                var operationsReport = new DevExpress.XtraBars.Navigation.AccordionControlElement()
+                {
+                    Name = "operationsReport",
+                    Text = "تقارير العمليات والمخالفات",
+                    Style = DevExpress.XtraBars.Navigation.ElementStyle.Item
+                };
+                operationsReport.Click += (s, e) => ShowSpecificReport("Operations");
+                accordionControlReports.Elements.Add(operationsReport);
                 
                 // مولد التقارير المخصصة
-                AddReportItem(reportsGroup, "مولد التقارير المخصصة", "CustomReportGenerator", Properties.Resources.custom_reports);
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء إعداد وحدة التقارير: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        
-        /// <summary>
-        /// إضافة عنصر تقرير لوحدة التقارير
-        /// </summary>
-        /// <param name="parent">وحدة التقارير الرئيسية</param>
-        /// <param name="text">اسم التقرير</param>
-        /// <param name="tag">الاسم المميز للتقرير</param>
-        /// <param name="image">رمز التقرير</param>
-        private void AddReportItem(AccordionControlElement parent, string text, string tag, System.Drawing.Image image)
-        {
-            try
-            {
-                // التحقق من وجود العنصر مسبقاً
-                foreach (AccordionControlElement item in parent.Elements)
+                var customReportGenerator = new DevExpress.XtraBars.Navigation.AccordionControlElement()
                 {
-                    if (item.Tag != null && item.Tag.ToString() == tag)
-                    {
-                        return; // العنصر موجود بالفعل
-                    }
-                }
-                
-                // إنشاء عنصر التقرير
-                AccordionControlElement reportItem = new AccordionControlElement
-                {
-                    Text = text,
-                    Style = ElementStyle.Item,
-                    Tag = tag
+                    Name = "customReportGenerator",
+                    Text = "مولد التقارير المخصصة",
+                    Style = DevExpress.XtraBars.Navigation.ElementStyle.Item
                 };
+                customReportGenerator.Click += (s, e) => ShowSpecificReport("CustomGenerator");
+                accordionControlReports.Elements.Add(customReportGenerator);
                 
-                // تعيين الرمز
-                if (image != null)
-                {
-                    reportItem.ImageOptions.Image = image;
-                }
-                
-                // إضافة حدث النقر
-                reportItem.Click += ReportItem_Click;
-                
-                // إضافة العنصر للقائمة
-                parent.Elements.Add(reportItem);
+                // توسيع قائمة التقارير
+                accordionControlReports.Expanded = true;
             }
             catch (Exception ex)
             {
-                XtraMessageBox.Show("حدث خطأ أثناء إضافة عنصر تقرير: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        
-        /// <summary>
-        /// حدث النقر على عنصر تقرير
-        /// </summary>
-        private void ReportItem_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                // الحصول على العنصر المحدد
-                AccordionControlElement element = sender as AccordionControlElement;
-                if (element == null || element.Tag == null) return;
-                
-                // عرض التقرير المناسب
-                ShowSpecificReport(element.Tag.ToString());
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء فتح التقرير: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-        
-        /// <summary>
-        /// عرض نموذج تقرير محدد
-        /// </summary>
-        /// <param name="reportTag">الاسم المميز للتقرير</param>
-        private void ShowSpecificReport(string reportTag)
-        {
-            try
-            {
-                // إغلاق النموذج الحالي في منطقة العرض إذا كان موجوداً
-                CloseCurrentForm();
-                
-                // تحديد النموذج المطلوب عرضه بناءً على الاسم المميز
-                XtraForm reportForm = null;
-                
-                switch (reportTag)
-                {
-                    case "EmployeeReport":
-                        reportForm = new EmployeeReportForm();
-                        break;
-                    
-                    case "AttendanceReport":
-                        reportForm = new AttendanceReportForm();
-                        break;
-                    
-                    case "LeaveReport":
-                        reportForm = new LeaveReportForm();
-                        break;
-                    
-                    case "PayrollReport":
-                        // سيتم تنفيذ تقرير الرواتب لاحقاً
-                        reportForm = new PayrollReportForm();
-                        break;
-                    
-                    case "OperationsReport":
-                        // سيتم تنفيذ تقرير العمليات والمخالفات لاحقاً
-                        reportForm = new OperationsReportForm();
-                        break;
-                    
-                    case "CustomReportGenerator":
-                        // سيتم تنفيذ مولد التقارير المخصصة لاحقاً
-                        reportForm = new CustomReportGeneratorForm();
-                        break;
-                    
-                    default:
-                        XtraMessageBox.Show("التقرير غير متوفر حالياً", "تنبيه", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        return;
-                }
-                
-                if (reportForm != null)
-                {
-                    // إعداد النموذج ليظهر في المنطقة الرئيسية
-                    reportForm.TopLevel = false;
-                    reportForm.FormBorderStyle = FormBorderStyle.None;
-                    reportForm.Dock = DockStyle.Fill;
-                    
-                    // عرض النموذج في المنطقة الرئيسية
-                    mainPanel.Controls.Add(reportForm);
-                    reportForm.Show();
-                    currentForm = reportForm;
-                    
-                    // تغيير عنوان النموذج الرئيسي
-                    lblFormTitle.Text = reportForm.Text;
-                }
-            }
-            catch (Exception ex)
-            {
-                XtraMessageBox.Show("حدث خطأ أثناء عرض التقرير: " + ex.Message, "خطأ", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                LogManager.LogException(ex, "فشل إعداد وحدة التقارير");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء إعداد قائمة التقارير: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
             }
         }
     }

@@ -611,6 +611,12 @@ namespace HR.UI.Forms
                     case "Payroll":
                         reportForm = new UI.Forms.Reports.PayrollReportForm();
                         break;
+                    case "Operations":
+                        reportForm = new UI.Forms.Reports.OperationsReportForm();
+                        break;
+                    case "CustomGenerator":
+                        reportForm = new UI.Forms.Reports.CustomReportGeneratorForm();
+                        break;
                     default:
                         // حالة غير معروفة
                         XtraMessageBox.Show(
