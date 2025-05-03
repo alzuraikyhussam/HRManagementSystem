@@ -3,12 +3,12 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج طلب الإجازة
+    /// نموذج رصيد الإجازات
     /// </summary>
-    public class LeaveRequest
+    public class LeaveBalance
     {
         /// <summary>
-        /// معرف طلب الإجازة
+        /// معرف رصيد الإجازة
         /// </summary>
         public int ID { get; set; }
         
@@ -23,44 +23,29 @@ namespace HR.Models
         public int LeaveTypeID { get; set; }
         
         /// <summary>
-        /// تاريخ بداية الإجازة
+        /// السنة
         /// </summary>
-        public DateTime StartDate { get; set; }
+        public int Year { get; set; }
         
         /// <summary>
-        /// تاريخ نهاية الإجازة
+        /// الرصيد الأساسي
         /// </summary>
-        public DateTime EndDate { get; set; }
+        public decimal BaseBalance { get; set; }
         
         /// <summary>
-        /// حالة الطلب (في الانتظار، تمت الموافقة، مرفوض، ملغي)
+        /// الرصيد الإضافي
         /// </summary>
-        public string Status { get; set; }
+        public decimal AdditionalBalance { get; set; }
         
         /// <summary>
-        /// ملاحظات الطلب
+        /// الرصيد المستخدم
+        /// </summary>
+        public decimal UsedBalance { get; set; }
+        
+        /// <summary>
+        /// ملاحظات
         /// </summary>
         public string Notes { get; set; }
-        
-        /// <summary>
-        /// تاريخ تقديم الطلب
-        /// </summary>
-        public DateTime SubmissionDate { get; set; }
-        
-        /// <summary>
-        /// تاريخ الموافقة أو الرفض
-        /// </summary>
-        public DateTime? ApprovalDate { get; set; }
-        
-        /// <summary>
-        /// معرف من قام بالموافقة أو الرفض
-        /// </summary>
-        public int? ApprovedBy { get; set; }
-        
-        /// <summary>
-        /// سبب الرفض
-        /// </summary>
-        public string ReasonForRejection { get; set; }
         
         /// <summary>
         /// معرف منشئ السجل
@@ -83,13 +68,21 @@ namespace HR.Models
         public DateTime ModifiedDate { get; set; }
         
         /// <summary>
-        /// الموظف المرتبط بالطلب
+        /// الموظف المرتبط بالرصيد
         /// </summary>
         public virtual Employee Employee { get; set; }
         
         /// <summary>
-        /// نوع الإجازة المرتبط بالطلب
+        /// نوع الإجازة المرتبط بالرصيد
         /// </summary>
         public virtual LeaveType LeaveType { get; set; }
+        
+        /// <summary>
+        /// الرصيد المتبقي (Calculated Property)
+        /// </summary>
+        public decimal RemainingBalance
+        {
+            get { return BaseBalance + AdditionalBalance - UsedBalance; }
+        }
     }
 }
