@@ -20,6 +20,12 @@ namespace HR.UI.Forms.Reports
         private readonly LeaveReport _leaveReport;
         private readonly CustomReportGenerator _customReportGenerator;
         
+        // تتبع حالة التقرير المعروض حاليًا
+        private string _currentReportType;
+        
+        /// <summary>
+        /// إنشاء نموذج التقارير الرئيسي
+        /// </summary>
         public ReportsMainForm()
         {
             InitializeComponent();
@@ -32,6 +38,89 @@ namespace HR.UI.Forms.Reports
             
             // ربط أحداث الأزرار
             InitializeButtons();
+        }
+        
+        /// <summary>
+        /// إنشاء نموذج التقارير وعرض تقرير محدد
+        /// </summary>
+        /// <param name="reportType">نوع التقرير المراد عرضه</param>
+        public ReportsMainForm(string reportType)
+        {
+            InitializeComponent();
+            
+            _reportManager = new ReportManager();
+            _payrollReport = new PayrollReport();
+            _attendanceReport = new AttendanceReport();
+            _leaveReport = new LeaveReport();
+            _customReportGenerator = new CustomReportGenerator();
+            
+            // ربط أحداث الأزرار
+            InitializeButtons();
+            
+            // عرض التقرير المطلوب
+            switch (reportType)
+            {
+                case "Employees":
+                    ShowEmployeeReport();
+                    break;
+                case "Attendance":
+                    ShowAttendanceReport();
+                    break;
+                case "Leave":
+                    ShowLeaveReport();
+                    break;
+                case "Payroll":
+                    ShowPayrollReport();
+                    break;
+                case "Custom":
+                    ShowCustomReport();
+                    break;
+            }
+        }
+        
+        /// <summary>
+        /// عرض تقرير الموظفين
+        /// </summary>
+        public void ShowEmployeeReport()
+        {
+            _currentReportType = "Employees";
+            btnEmployeesList.PerformClick();
+        }
+        
+        /// <summary>
+        /// عرض تقرير الحضور
+        /// </summary>
+        public void ShowAttendanceReport()
+        {
+            _currentReportType = "Attendance";
+            btnAttendanceSummary.PerformClick();
+        }
+        
+        /// <summary>
+        /// عرض تقرير الإجازات
+        /// </summary>
+        public void ShowLeaveReport()
+        {
+            _currentReportType = "Leave";
+            btnLeaveReport.PerformClick();
+        }
+        
+        /// <summary>
+        /// عرض تقرير الرواتب
+        /// </summary>
+        public void ShowPayrollReport()
+        {
+            _currentReportType = "Payroll";
+            btnPayrollReport.PerformClick();
+        }
+        
+        /// <summary>
+        /// عرض التقارير المخصصة
+        /// </summary>
+        public void ShowCustomReport()
+        {
+            _currentReportType = "Custom";
+            btnCustomReport.PerformClick();
         }
         
         /// <summary>

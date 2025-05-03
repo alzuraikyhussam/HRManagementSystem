@@ -320,6 +320,23 @@ namespace HR.UI.Forms
                 {
                     ShowReportsManagement();
                 }
+                // عناصر التقارير الفرعية
+                else if (element == accordionControlReportsEmployees)
+                {
+                    ShowSpecificReport("Employees");
+                }
+                else if (element == accordionControlReportsAttendance)
+                {
+                    ShowSpecificReport("Attendance");
+                }
+                else if (element == accordionControlReportsLeaves)
+                {
+                    ShowSpecificReport("Leave");
+                }
+                else if (element == accordionControlReportsPayroll)
+                {
+                    ShowSpecificReport("Payroll");
+                }
                 else if (element == accordionControlSettings)
                 {
                     ShowSettings();
@@ -530,22 +547,64 @@ namespace HR.UI.Forms
                 // تحديث الأيقونة
                 svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("reports");
                 
-                // هنا يمكن إضافة أو إنشاء نموذج إدارة التقارير
-                // مؤقتاً، نعرض رسالة عن عدم اكتمال هذه الميزة
-                XtraMessageBox.Show(
-                    "نموذج إدارة التقارير قيد التطوير",
-                    "التقارير",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-                
-                // تنظيف منطقة المحتوى
-                OpenForm(null);
+                // إنشاء نموذج إدارة التقارير
+                HR.UI.Forms.Reports.ReportsMainForm reportsForm = new HR.UI.Forms.Reports.ReportsMainForm();
+                OpenForm(reportsForm);
             }
             catch (Exception ex)
             {
                 LogManager.LogException(ex, "فشل عرض إدارة التقارير");
                 XtraMessageBox.Show(
                     $"حدث خطأ أثناء عرض إدارة التقارير: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+        
+        /// <summary>
+        /// عرض تقرير محدد من قائمة التقارير
+        /// </summary>
+        /// <param name="reportType">نوع التقرير</param>
+        private void ShowSpecificReport(string reportType)
+        {
+            try
+            {
+                // إنشاء نموذج إدارة التقارير
+                HR.UI.Forms.Reports.ReportsMainForm reportsForm = new HR.UI.Forms.Reports.ReportsMainForm();
+                
+                // استدعاء الطريقة المناسبة حسب نوع التقرير
+                switch (reportType)
+                {
+                    case "Employees":
+                        // تقارير الموظفين
+                        reportsForm.ShowEmployeeReport();
+                        break;
+                    case "Attendance":
+                        // تقارير الحضور
+                        reportsForm.ShowAttendanceReport();
+                        break;
+                    case "Leave":
+                        // تقارير الإجازات
+                        reportsForm.ShowLeaveReport();
+                        break;
+                    case "Payroll":
+                        // تقارير الرواتب
+                        reportsForm.ShowPayrollReport();
+                        break;
+                    case "Custom":
+                        // التقارير المخصصة
+                        reportsForm.ShowCustomReport();
+                        break;
+                }
+                
+                OpenForm(reportsForm);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض التقرير المحدد");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض التقرير: {ex.Message}",
                     "خطأ",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
