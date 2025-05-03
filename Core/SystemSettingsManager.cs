@@ -430,6 +430,86 @@ namespace HR.Core
             }
         }
         
+        /// <summary>
+        /// الحصول على إعدادات الرواتب
+        /// </summary>
+        /// <returns>كائن إعدادات الرواتب</returns>
+        public PayrollSettings GetPayrollSettings()
+        {
+            PayrollSettings settings = new PayrollSettings();
+            
+            try
+            {
+                // استرجاع إعدادات المجموعة
+                Dictionary<string, string> payrollSettings = GetSettingsByGroup("Payroll");
+                
+                // تعبئة البيانات
+                // إعدادات دورة الراتب
+                settings.PayrollStartDate = GetSettingFromDictionaryDateTime(payrollSettings, "PayrollStartDate", DateTime.Today.AddDays(-DateTime.Today.Day + 1)) ?? DateTime.Today.AddDays(-DateTime.Today.Day + 1);
+                settings.PayrollDays = GetSettingFromDictionaryInt(payrollSettings, "PayrollDays", 30);
+                settings.PayrollCalculationMethod = GetSettingFromDictionary(payrollSettings, "PayrollCalculationMethod", "MonthlyRate");
+                settings.AutoApprovePayroll = GetSettingFromDictionaryBool(payrollSettings, "AutoApprovePayroll", false);
+                
+                // إعدادات الراتب الأساسي
+                settings.OvertimeMultiplier = GetSettingFromDictionaryDouble(payrollSettings, "OvertimeMultiplier", 1.25);
+                settings.WeekendOvertimeMultiplier = GetSettingFromDictionaryDouble(payrollSettings, "WeekendOvertimeMultiplier", 1.5);
+                settings.HolidayOvertimeMultiplier = GetSettingFromDictionaryDouble(payrollSettings, "HolidayOvertimeMultiplier", 2.0);
+                settings.IncludeAllowancesInOvertime = GetSettingFromDictionaryBool(payrollSettings, "IncludeAllowancesInOvertime", false);
+                
+                // إعدادات الضرائب والتأمينات
+                settings.TaxEnabled = GetSettingFromDictionaryBool(payrollSettings, "TaxEnabled", false);
+                settings.TaxPercentage = GetSettingFromDictionaryDouble(payrollSettings, "TaxPercentage", 0.15);
+                settings.InsuranceEnabled = GetSettingFromDictionaryBool(payrollSettings, "InsuranceEnabled", false);
+                settings.InsurancePercentage = GetSettingFromDictionaryDouble(payrollSettings, "InsurancePercentage", 0.10);
+                settings.PensionEnabled = GetSettingFromDictionaryBool(payrollSettings, "PensionEnabled", false);
+                settings.PensionPercentage = GetSettingFromDictionaryDouble(payrollSettings, "PensionPercentage", 0.05);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "حدث خطأ أثناء استرجاع إعدادات الرواتب");
+            }
+            
+            return settings;
+        }
+        
+        /// <summary>
+        /// حفظ إعدادات الرواتب
+        /// </summary>
+        /// <param name="settings">كائن إعدادات الرواتب</param>
+        /// <returns>نجاح العملية</returns>
+        public bool SavePayrollSettings(PayrollSettings settings)
+        {
+            try
+            {
+                // إعدادات دورة الراتب
+                SaveSettingValue("PayrollStartDate", settings.PayrollStartDate.ToString("yyyy-MM-dd"), "Payroll", "تاريخ بداية دورة الراتب", "DateTime");
+                SaveSettingValue("PayrollDays", settings.PayrollDays.ToString(), "Payroll", "عدد أيام دورة الراتب", "Int32");
+                SaveSettingValue("PayrollCalculationMethod", settings.PayrollCalculationMethod, "Payroll", "طريقة حساب الراتب", "String");
+                SaveSettingValue("AutoApprovePayroll", settings.AutoApprovePayroll.ToString(), "Payroll", "اعتماد الرواتب تلقائياً", "Boolean");
+                
+                // إعدادات الراتب الأساسي
+                SaveSettingValue("OvertimeMultiplier", settings.OvertimeMultiplier.ToString(), "Payroll", "مُضاعف العمل الإضافي", "Double");
+                SaveSettingValue("WeekendOvertimeMultiplier", settings.WeekendOvertimeMultiplier.ToString(), "Payroll", "مُضاعف العمل الإضافي في نهاية الأسبوع", "Double");
+                SaveSettingValue("HolidayOvertimeMultiplier", settings.HolidayOvertimeMultiplier.ToString(), "Payroll", "مُضاعف العمل الإضافي في العطلات", "Double");
+                SaveSettingValue("IncludeAllowancesInOvertime", settings.IncludeAllowancesInOvertime.ToString(), "Payroll", "إدراج البدلات في حساب العمل الإضافي", "Boolean");
+                
+                // إعدادات الضرائب والتأمينات
+                SaveSettingValue("TaxEnabled", settings.TaxEnabled.ToString(), "Payroll", "تفعيل الضريبة", "Boolean");
+                SaveSettingValue("TaxPercentage", settings.TaxPercentage.ToString(), "Payroll", "نسبة الضريبة", "Double");
+                SaveSettingValue("InsuranceEnabled", settings.InsuranceEnabled.ToString(), "Payroll", "تفعيل التأمينات", "Boolean");
+                SaveSettingValue("InsurancePercentage", settings.InsurancePercentage.ToString(), "Payroll", "نسبة التأمينات", "Double");
+                SaveSettingValue("PensionEnabled", settings.PensionEnabled.ToString(), "Payroll", "تفعيل المعاش", "Boolean");
+                SaveSettingValue("PensionPercentage", settings.PensionPercentage.ToString(), "Payroll", "نسبة المعاش", "Double");
+                
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "حدث خطأ أثناء حفظ إعدادات الرواتب");
+                return false;
+            }
+        }
+        
         #region Helper Methods
         
         private string GetSettingFromDictionary(Dictionary<string, string> settings, string key, string defaultValue)
