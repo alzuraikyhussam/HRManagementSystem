@@ -532,7 +532,7 @@ namespace HR.UI.Forms
         }
 
         /// <summary>
-        /// عرض إدارة التقارير
+        /// عرض إدارة التقارير (لا تقوم بفتح أي نموذج)
         /// </summary>
         private void ShowReportsManagement()
         {
@@ -547,9 +547,8 @@ namespace HR.UI.Forms
                 // تحديث الأيقونة
                 svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("reports");
                 
-                // إنشاء نموذج إدارة التقارير
-                HR.UI.Forms.Reports.ReportsMainForm reportsForm = new HR.UI.Forms.Reports.ReportsMainForm();
-                OpenForm(reportsForm);
+                // لا نفتح أي نموذج هنا حسب طلب المستخدم
+                // تم إزالة الشيفرة التي تفتح نموذج ReportsMainForm
             }
             catch (Exception ex)
             {
@@ -570,35 +569,61 @@ namespace HR.UI.Forms
         {
             try
             {
-                // إنشاء نموذج إدارة التقارير
-                HR.UI.Forms.Reports.ReportsMainForm reportsForm = new HR.UI.Forms.Reports.ReportsMainForm();
-                
-                // استدعاء الطريقة المناسبة حسب نوع التقرير
+                // تحديث العنوان حسب نوع التقرير
                 switch (reportType)
                 {
                     case "Employees":
-                        // تقارير الموظفين
-                        reportsForm.ShowEmployeeReport();
+                        labelControlPageTitle.Text = "تقارير الموظفين";
                         break;
                     case "Attendance":
-                        // تقارير الحضور
-                        reportsForm.ShowAttendanceReport();
+                        labelControlPageTitle.Text = "تقارير الحضور والانصراف";
                         break;
                     case "Leave":
-                        // تقارير الإجازات
-                        reportsForm.ShowLeaveReport();
+                        labelControlPageTitle.Text = "تقارير الإجازات";
                         break;
                     case "Payroll":
-                        // تقارير الرواتب
-                        reportsForm.ShowPayrollReport();
+                        labelControlPageTitle.Text = "تقارير الرواتب";
                         break;
-                    case "Custom":
-                        // التقارير المخصصة
-                        reportsForm.ShowCustomReport();
+                    default:
+                        labelControlPageTitle.Text = "التقارير";
                         break;
                 }
                 
-                OpenForm(reportsForm);
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("reports");
+                
+                // إنشاء النموذج المناسب حسب نوع التقرير
+                Form reportForm = null;
+                
+                switch (reportType)
+                {
+                    case "Employees":
+                        reportForm = new UI.Forms.Reports.SimpleEmployeeReportForm();
+                        break;
+                    case "Attendance":
+                        // مؤقتاً نستخدم نفس نموذج تقرير الموظفين
+                        reportForm = new UI.Forms.Reports.SimpleEmployeeReportForm();
+                        break;
+                    case "Leave":
+                        // مؤقتاً نستخدم نفس نموذج تقرير الموظفين
+                        reportForm = new UI.Forms.Reports.SimpleEmployeeReportForm();
+                        break;
+                    case "Payroll":
+                        // مؤقتاً نستخدم نفس نموذج تقرير الموظفين
+                        reportForm = new UI.Forms.Reports.SimpleEmployeeReportForm();
+                        break;
+                    default:
+                        // حالة غير معروفة
+                        XtraMessageBox.Show(
+                            "نوع التقرير غير مدعوم بعد.",
+                            "تنبيه",
+                            MessageBoxButtons.OK,
+                            MessageBoxIcon.Warning);
+                        return;
+                }
+                
+                // فتح النموذج في منطقة العمل
+                OpenForm(reportForm as XtraForm);
             }
             catch (Exception ex)
             {

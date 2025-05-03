@@ -289,6 +289,7 @@ namespace HR.UI.Forms
             this.accordionControlReportsAttendance,
             this.accordionControlReportsLeaves,
             this.accordionControlReportsPayroll});
+            this.accordionControlReports.Expanded = true;
             this.accordionControlReports.HeaderTemplate.AddRange(new DevExpress.XtraBars.Navigation.HeaderElementInfo[] {
             new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.Image),
             new DevExpress.XtraBars.Navigation.HeaderElementInfo(DevExpress.XtraBars.Navigation.HeaderElementType.HeaderControl),
