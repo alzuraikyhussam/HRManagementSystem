@@ -69,11 +69,14 @@ namespace HR.Core
             report.RightToLeft = DevExpress.XtraReports.UI.RightToLeft.Yes;
             report.RightToLeftLayout = DevExpress.XtraReports.UI.RightToLeftLayout.Yes;
             
-            // تعيين حجم الورقة إلى A4
-            report.PaperKind = System.Drawing.Printing.PaperKind.A4;
+            // تعيين حجم الورقة إلى A4 بشكل صريح
+            report.PaperKind = System.Drawing.Printing.PaperKind.A4; // A4 (210mm x 297mm)
+            report.PageWidth = A4_WIDTH_MM; // 210mm
+            report.PageHeight = A4_HEIGHT_MM; // 297mm
+            report.ReportUnit = DevExpress.XtraReports.UI.ReportUnit.Millimeters; // تعيين وحدة القياس إلى ملم
             
-            // التأكد من تعيين الهوامش بشكل دقيق
-            report.Margins = new System.Drawing.Printing.Margins(20, 20, 20, 20);
+            // التأكد من تعيين الهوامش بشكل دقيق (بالملم)
+            report.Margins = new System.Drawing.Printing.Margins(10, 10, 15, 15);
             
             // إضافة الخلفية للتقرير
             SetReportBackground(report);
