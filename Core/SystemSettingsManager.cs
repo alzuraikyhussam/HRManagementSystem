@@ -604,7 +604,7 @@ namespace HR.Core
             try
             {
                 // استرجاع إعدادات المجموعة
-                Dictionary<string, string> attendanceSettings = GetSettingsByGroup("AttendanceRules");
+                Dictionary<string, string> attendanceSettings = GetSettingsByGroup("Attendance");
                 
                 // تعبئة البيانات
                 // قواعد الغياب
@@ -652,31 +652,31 @@ namespace HR.Core
             try
             {
                 // قواعد الغياب
-                SaveSettingValue("AbsentDaysDeduction", settings.AbsentDaysDeduction.ToString(), "AttendanceRules", "عدد أيام الخصم عن اليوم الغياب", "Decimal");
-                SaveSettingValue("MaxAllowedAbsentDays", settings.MaxAllowedAbsentDays.ToString(), "AttendanceRules", "الحد الأقصى لأيام الغياب المسموح بها في الشهر", "Int32");
+                SaveSettingValue("AbsentDaysDeduction", settings.AbsentDaysDeduction.ToString(), "Attendance", "عدد أيام الخصم عن اليوم الغياب", "Decimal");
+                SaveSettingValue("MaxAllowedAbsentDays", settings.MaxAllowedAbsentDays.ToString(), "Attendance", "الحد الأقصى لأيام الغياب المسموح بها في الشهر", "Int32");
                 
                 // قواعد التأخير
-                SaveSettingValue("LateArrivalPenaltyEnabled", settings.LateArrivalPenaltyEnabled.ToString(), "AttendanceRules", "تفعيل خصم التأخير", "Boolean");
-                SaveSettingValue("LateArrivalGraceMinutes", settings.LateArrivalGraceMinutes.ToString(), "AttendanceRules", "دقائق السماح للتأخير", "Int32");
-                SaveSettingValue("LateArrivalPenaltyPerMinute", settings.LateArrivalPenaltyPerMinute.ToString(), "AttendanceRules", "مقدار الخصم لكل دقيقة تأخير", "Decimal");
-                SaveSettingValue("LateArrivalMaxPenaltyPerDay", settings.LateArrivalMaxPenaltyPerDay.ToString(), "AttendanceRules", "الحد الأقصى للخصم اليومي بسبب التأخير", "Decimal");
+                SaveSettingValue("LateArrivalPenaltyEnabled", settings.LateArrivalPenaltyEnabled.ToString(), "Attendance", "تفعيل خصم التأخير", "Boolean");
+                SaveSettingValue("LateArrivalGraceMinutes", settings.LateArrivalGraceMinutes.ToString(), "Attendance", "دقائق السماح للتأخير", "Int32");
+                SaveSettingValue("LateArrivalPenaltyPerMinute", settings.LateArrivalPenaltyPerMinute.ToString(), "Attendance", "مقدار الخصم لكل دقيقة تأخير", "Decimal");
+                SaveSettingValue("LateArrivalMaxPenaltyPerDay", settings.LateArrivalMaxPenaltyPerDay.ToString(), "Attendance", "الحد الأقصى للخصم اليومي بسبب التأخير", "Decimal");
                 
                 // قواعد المغادرة المبكرة
-                SaveSettingValue("EarlyDeparturePenaltyEnabled", settings.EarlyDeparturePenaltyEnabled.ToString(), "AttendanceRules", "تفعيل خصم المغادرة المبكرة", "Boolean");
-                SaveSettingValue("EarlyDepartureGraceMinutes", settings.EarlyDepartureGraceMinutes.ToString(), "AttendanceRules", "دقائق السماح للمغادرة المبكرة", "Int32");
-                SaveSettingValue("EarlyDeparturePenaltyPerMinute", settings.EarlyDeparturePenaltyPerMinute.ToString(), "AttendanceRules", "مقدار الخصم لكل دقيقة مغادرة مبكرة", "Decimal");
-                SaveSettingValue("EarlyDepartureMaxPenaltyPerDay", settings.EarlyDepartureMaxPenaltyPerDay.ToString(), "AttendanceRules", "الحد الأقصى للخصم اليومي بسبب المغادرة المبكرة", "Decimal");
+                SaveSettingValue("EarlyDeparturePenaltyEnabled", settings.EarlyDeparturePenaltyEnabled.ToString(), "Attendance", "تفعيل خصم المغادرة المبكرة", "Boolean");
+                SaveSettingValue("EarlyDepartureGraceMinutes", settings.EarlyDepartureGraceMinutes.ToString(), "Attendance", "دقائق السماح للمغادرة المبكرة", "Int32");
+                SaveSettingValue("EarlyDeparturePenaltyPerMinute", settings.EarlyDeparturePenaltyPerMinute.ToString(), "Attendance", "مقدار الخصم لكل دقيقة مغادرة مبكرة", "Decimal");
+                SaveSettingValue("EarlyDepartureMaxPenaltyPerDay", settings.EarlyDepartureMaxPenaltyPerDay.ToString(), "Attendance", "الحد الأقصى للخصم اليومي بسبب المغادرة المبكرة", "Decimal");
                 
                 // إعدادات احتساب العمل الإضافي
-                SaveSettingValue("OvertimeEnabled", settings.OvertimeEnabled.ToString(), "AttendanceRules", "تفعيل احتساب العمل الإضافي", "Boolean");
-                SaveSettingValue("OvertimeStartAfterMinutes", settings.OvertimeStartAfterMinutes.ToString(), "AttendanceRules", "بدء احتساب العمل الإضافي بعد عدد دقائق", "Int32");
-                SaveSettingValue("OvertimeMultiplier", settings.OvertimeMultiplier.ToString(), "AttendanceRules", "مضاعف العمل الإضافي", "Decimal");
-                SaveSettingValue("WeekendOvertimeMultiplier", settings.WeekendOvertimeMultiplier.ToString(), "AttendanceRules", "مضاعف العمل الإضافي في نهاية الأسبوع", "Decimal");
-                SaveSettingValue("HolidayOvertimeMultiplier", settings.HolidayOvertimeMultiplier.ToString(), "AttendanceRules", "مضاعف العمل الإضافي في العطلات", "Decimal");
+                SaveSettingValue("OvertimeEnabled", settings.OvertimeEnabled.ToString(), "Attendance", "تفعيل احتساب العمل الإضافي", "Boolean");
+                SaveSettingValue("OvertimeStartAfterMinutes", settings.OvertimeStartAfterMinutes.ToString(), "Attendance", "بدء احتساب العمل الإضافي بعد عدد دقائق", "Int32");
+                SaveSettingValue("OvertimeMultiplier", settings.OvertimeMultiplier.ToString(), "Attendance", "مضاعف العمل الإضافي", "Decimal");
+                SaveSettingValue("WeekendOvertimeMultiplier", settings.WeekendOvertimeMultiplier.ToString(), "Attendance", "مضاعف العمل الإضافي في نهاية الأسبوع", "Decimal");
+                SaveSettingValue("HolidayOvertimeMultiplier", settings.HolidayOvertimeMultiplier.ToString(), "Attendance", "مضاعف العمل الإضافي في العطلات", "Decimal");
                 
                 // إعدادات التصاريح
-                SaveSettingValue("MaxPermissionsPerMonth", settings.MaxPermissionsPerMonth.ToString(), "AttendanceRules", "الحد الأقصى للتصاريح في الشهر", "Int32");
-                SaveSettingValue("MaxPermissionMinutesPerDay", settings.MaxPermissionMinutesPerDay.ToString(), "AttendanceRules", "الحد الأقصى لدقائق التصريح في اليوم", "Int32");
+                SaveSettingValue("MaxPermissionsPerMonth", settings.MaxPermissionsPerMonth.ToString(), "Attendance", "الحد الأقصى للتصاريح في الشهر", "Int32");
+                SaveSettingValue("MaxPermissionMinutesPerDay", settings.MaxPermissionMinutesPerDay.ToString(), "Attendance", "الحد الأقصى لدقائق التصريح في اليوم", "Int32");
                 
                 return true;
             }
