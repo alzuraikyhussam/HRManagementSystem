@@ -547,8 +547,10 @@ namespace HR.UI.Forms
                 // تحديث الأيقونة
                 svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("reports");
                 
-                // لا نفتح أي نموذج هنا حسب طلب المستخدم
-                // تم إزالة الشيفرة التي تفتح نموذج ReportsMainForm
+                // إعداد وحدة التقارير في القائمة
+                SetupReportsModule();
+                
+                // لا نفتح أي نموذج هنا حتى يختار المستخدم التقرير المطلوب من القائمة الجانبية
             }
             catch (Exception ex)
             {
@@ -598,19 +600,16 @@ namespace HR.UI.Forms
                 switch (reportType)
                 {
                     case "Employees":
-                        reportForm = new UI.Forms.Reports.SimpleEmployeeReportForm();
+                        reportForm = new UI.Forms.Reports.EmployeeReportForm();
                         break;
                     case "Attendance":
-                        // مؤقتاً نستخدم نفس نموذج تقرير الموظفين
-                        reportForm = new UI.Forms.Reports.SimpleEmployeeReportForm();
+                        reportForm = new UI.Forms.Reports.AttendanceReportForm();
                         break;
                     case "Leave":
-                        // مؤقتاً نستخدم نفس نموذج تقرير الموظفين
-                        reportForm = new UI.Forms.Reports.SimpleEmployeeReportForm();
+                        reportForm = new UI.Forms.Reports.LeaveReportForm();
                         break;
                     case "Payroll":
-                        // مؤقتاً نستخدم نفس نموذج تقرير الموظفين
-                        reportForm = new UI.Forms.Reports.SimpleEmployeeReportForm();
+                        reportForm = new UI.Forms.Reports.PayrollReportForm();
                         break;
                     default:
                         // حالة غير معروفة
