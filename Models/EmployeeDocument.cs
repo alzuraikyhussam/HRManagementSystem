@@ -3,88 +3,256 @@ using System;
 namespace HR.Models
 {
     /// <summary>
-    /// نموذج وثائق الموظف - يتوافق مع جدول EmployeeDocuments في قاعدة البيانات
+    /// نموذج وثيقة موظف
     /// </summary>
     public class EmployeeDocument
     {
         /// <summary>
-        /// معرف الوثيقة
+        /// المعرف
         /// </summary>
         public int ID { get; set; }
-
+        
         /// <summary>
         /// معرف الموظف
         /// </summary>
         public int EmployeeID { get; set; }
-
+        
+        /// <summary>
+        /// نوع الوثيقة
+        /// </summary>
+        public int DocumentTypeID { get; set; }
+        
+        /// <summary>
+        /// عنوان الوثيقة
+        /// </summary>
+        public string Title { get; set; }
+        
+        /// <summary>
+        /// الوصف
+        /// </summary>
+        public string Description { get; set; }
+        
+        /// <summary>
+        /// مسار الملف
+        /// </summary>
+        public string FilePath { get; set; }
+        
+        /// <summary>
+        /// حجم الملف (بالبايت)
+        /// </summary>
+        public long FileSize { get; set; }
+        
+        /// <summary>
+        /// نوع الملف (الامتداد)
+        /// </summary>
+        public string FileType { get; set; }
+        
+        /// <summary>
+        /// تاريخ الإصدار
+        /// </summary>
+        public DateTime IssueDate { get; set; }
+        
+        /// <summary>
+        /// تاريخ انتهاء الصلاحية
+        /// </summary>
+        public DateTime? ExpiryDate { get; set; }
+        
+        /// <summary>
+        /// الملاحظات
+        /// </summary>
+        public string Notes { get; set; }
+        
+        /// <summary>
+        /// التذكير (عدد الأيام قبل انتهاء الصلاحية)
+        /// </summary>
+        public int? ReminderDays { get; set; }
+        
+        /// <summary>
+        /// تاريخ التحميل
+        /// </summary>
+        public DateTime UploadDate { get; set; }
+        
+        /// <summary>
+        /// معرف المستخدم الذي قام بالتحميل
+        /// </summary>
+        public int UploadedByUserID { get; set; }
+        
+        /// <summary>
+        /// علامة التحقق من الوثيقة
+        /// </summary>
+        public bool IsVerified { get; set; }
+        
+        /// <summary>
+        /// معرف المستخدم الذي قام بالتحقق
+        /// </summary>
+        public int? VerifiedByUserID { get; set; }
+        
+        /// <summary>
+        /// تاريخ التحقق
+        /// </summary>
+        public DateTime? VerificationDate { get; set; }
+        
+        // العلاقات
+        
         /// <summary>
         /// الموظف المرتبط
         /// </summary>
         public virtual Employee Employee { get; set; }
-
+        
         /// <summary>
-        /// نوع الوثيقة
+        /// نوع الوثيقة المرتبط
         /// </summary>
-        public string DocumentType { get; set; }
-
+        public virtual DocumentType DocumentType { get; set; }
+        
         /// <summary>
-        /// عنوان الوثيقة
+        /// الحصول على حالة الوثيقة
         /// </summary>
-        public string DocumentTitle { get; set; }
-
+        public string GetDocumentStatus()
+        {
+            // التحقق من انتهاء الصلاحية
+            if (ExpiryDate.HasValue && ExpiryDate.Value < DateTime.Now)
+            {
+                return "منتهية الصلاحية";
+            }
+            
+            // التحقق من اقتراب انتهاء الصلاحية
+            if (ExpiryDate.HasValue && ReminderDays.HasValue)
+            {
+                double daysRemaining = (ExpiryDate.Value - DateTime.Now).TotalDays;
+                if (daysRemaining <= ReminderDays.Value)
+                {
+                    return "قرب انتهاء الصلاحية";
+                }
+            }
+            
+            // التحقق من التحقق
+            if (!IsVerified)
+            {
+                return "غير متحقق منها";
+            }
+            
+            return "سارية";
+        }
+        
         /// <summary>
-        /// رقم الوثيقة
+        /// الحصول على الأيام المتبقية حتى انتهاء الصلاحية
         /// </summary>
-        public string DocumentNumber { get; set; }
-
+        public int GetRemainingDays()
+        {
+            if (ExpiryDate.HasValue)
+            {
+                var remainingDays = (int)(ExpiryDate.Value - DateTime.Now).TotalDays;
+                return remainingDays > 0 ? remainingDays : 0;
+            }
+            
+            return -1; // غير محدد
+        }
+    }
+    
+    /// <summary>
+    /// نموذج نوع الوثيقة
+    /// </summary>
+    public class DocumentType
+    {
         /// <summary>
-        /// تاريخ الإصدار
+        /// المعرف
         /// </summary>
-        public DateTime? IssueDate { get; set; }
-
+        public int ID { get; set; }
+        
         /// <summary>
-        /// تاريخ الانتهاء
+        /// اسم نوع الوثيقة
         /// </summary>
-        public DateTime? ExpiryDate { get; set; }
-
+        public string Name { get; set; }
+        
         /// <summary>
-        /// الجهة المصدرة
+        /// الوصف
         /// </summary>
-        public string IssuedBy { get; set; }
-
+        public string Description { get; set; }
+        
         /// <summary>
-        /// ملف الوثيقة
+        /// هل الوثيقة إلزامية
         /// </summary>
-        public byte[] DocumentFile { get; set; }
-
+        public bool IsRequired { get; set; }
+        
         /// <summary>
-        /// مسار ملف الوثيقة
+        /// هل الوثيقة قابلة للتجديد
         /// </summary>
-        public string DocumentPath { get; set; }
-
+        public bool IsRenewable { get; set; }
+        
+        /// <summary>
+        /// هل تحتاج الوثيقة إلى تحقق
+        /// </summary>
+        public bool RequiresVerification { get; set; }
+        
+        /// <summary>
+        /// أنواع الملفات المسموح بها (بالفواصل)
+        /// </summary>
+        public string AllowedFileTypes { get; set; }
+        
+        /// <summary>
+        /// الحد الأقصى لحجم الملف (بالميجابايت)
+        /// </summary>
+        public decimal MaxFileSizeMB { get; set; }
+        
+        /// <summary>
+        /// المدة الافتراضية للصلاحية (بالأيام، 0 للوثائق غير محددة المدة)
+        /// </summary>
+        public int DefaultValidityDays { get; set; }
+        
+        /// <summary>
+        /// الأيام الافتراضية للتذكير قبل انتهاء الصلاحية
+        /// </summary>
+        public int DefaultReminderDays { get; set; }
+    }
+    
+    /// <summary>
+    /// نموذج تتبع تجديد الوثيقة
+    /// </summary>
+    public class DocumentRenewalHistory
+    {
+        /// <summary>
+        /// المعرف
+        /// </summary>
+        public int ID { get; set; }
+        
+        /// <summary>
+        /// معرف الوثيقة
+        /// </summary>
+        public int DocumentID { get; set; }
+        
+        /// <summary>
+        /// تاريخ التجديد
+        /// </summary>
+        public DateTime RenewalDate { get; set; }
+        
+        /// <summary>
+        /// تاريخ الصلاحية السابق
+        /// </summary>
+        public DateTime PreviousExpiryDate { get; set; }
+        
+        /// <summary>
+        /// تاريخ الصلاحية الجديد
+        /// </summary>
+        public DateTime NewExpiryDate { get; set; }
+        
+        /// <summary>
+        /// تكلفة التجديد (إن وجدت)
+        /// </summary>
+        public decimal? RenewalCost { get; set; }
+        
+        /// <summary>
+        /// المستخدم الذي قام بالتجديد
+        /// </summary>
+        public int RenewedByUserID { get; set; }
+        
         /// <summary>
         /// ملاحظات
         /// </summary>
         public string Notes { get; set; }
-
+        
         /// <summary>
-        /// تاريخ الإنشاء
+        /// الوثيقة المرتبطة
         /// </summary>
-        public DateTime? CreatedAt { get; set; }
-
-        /// <summary>
-        /// منشئ السجل
-        /// </summary>
-        public int? CreatedBy { get; set; }
-
-        /// <summary>
-        /// تاريخ التعديل
-        /// </summary>
-        public DateTime? UpdatedAt { get; set; }
-
-        /// <summary>
-        /// معدل السجل
-        /// </summary>
-        public int? UpdatedBy { get; set; }
+        public virtual EmployeeDocument Document { get; set; }
     }
 }

@@ -220,20 +220,38 @@ namespace HR.UI.Forms.Dashboard
                 // تحديث إحصائيات الحضور
                 UpdateAttendanceStatistics(dashboardData.AttendanceStatistics);
                 
+                // تحديث إحصائيات الإجازات
+                UpdateLeaveStatistics(dashboardData.LeaveStatistics);
+                
+                // تحديث إحصائيات الرواتب
+                UpdatePayrollStatistics(dashboardData.PayrollStatistics);
+                
                 // تحديث قائمة الإجازات الحالية
                 UpdateCurrentLeaves(dashboardData.CurrentLeaves);
                 
                 // تحديث رسوم الحضور
                 UpdateAttendanceChart(dashboardData.AttendanceChartData);
                 
+                // تحديث رسوم اتجاهات الحضور
+                UpdateAttendanceTrendChart(dashboardData.AttendanceTrendData);
+                
                 // تحديث رسوم الإجازات
                 UpdateLeavesChart(dashboardData.LeavesChartData);
+                
+                // تحديث رسوم الحضور حسب القسم
+                UpdateDepartmentAttendanceChart(dashboardData.DepartmentAttendanceData);
+                
+                // تحديث رسوم الحضور حسب أيام الأسبوع
+                UpdateWeekdayAttendanceChart(dashboardData.WeekdayAttendanceData);
                 
                 // تحديث قائمة التنبيهات
                 UpdateNotifications(dashboardData.Notifications);
                 
                 // تحديث قائمة الأحداث القادمة
                 UpdateUpcomingEvents(dashboardData.UpcomingEvents);
+                
+                // تحديث مؤشرات الأداء الرئيسية
+                UpdateKPIData(dashboardData.KPIData);
             }
             catch (Exception ex)
             {
@@ -507,6 +525,465 @@ namespace HR.UI.Forms.Dashboard
             {
                 LogManager.LogException(ex, "فشل تحديث قائمة الأحداث القادمة");
             }
+        }
+        
+        /// <summary>
+        /// تحديث إحصائيات الإجازات
+        /// </summary>
+        private void UpdateLeaveStatistics(LeaveStatisticsDTO statistics)
+        {
+            if (statistics == null)
+                return;
+                
+            try
+            {
+                // تحديث مؤشرات إحصائيات الإجازات
+                kpiTotalLeaves.Value = statistics.TotalLeaves;
+                kpiSickLeaves.Value = statistics.SickLeaves;
+                kpiAnnualLeaves.Value = statistics.AnnualLeaves;
+                kpiEmergencyLeaves.Value = statistics.EmergencyLeaves;
+                
+                // تحديث النسب المئوية
+                if (statistics.TotalLeaves > 0)
+                {
+                    kpiSickLeaves.Caption = $"الإجازات المرضية ({(decimal)statistics.SickLeaves * 100 / statistics.TotalLeaves:0.0}%)";
+                    kpiAnnualLeaves.Caption = $"الإجازات السنوية ({(decimal)statistics.AnnualLeaves * 100 / statistics.TotalLeaves:0.0}%)";
+                    kpiEmergencyLeaves.Caption = $"الإجازات الطارئة ({(decimal)statistics.EmergencyLeaves * 100 / statistics.TotalLeaves:0.0}%)";
+                }
+                
+                // تحديث مؤشرات المقارنة
+                SetComparisonIndicator(labelSickLeaveChange, statistics.SickLeaveChangePercent);
+                SetComparisonIndicator(labelLeaveUtilization, statistics.LeaveUtilizationRate, targetValue: 100);
+                
+                // تحديث متوسط أيام الإجازة
+                labelAverageLeaveDays.Text = $"متوسط أيام الإجازة للموظف: {statistics.AverageLeaveDaysPerEmployee:0.00} يوم";
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل تحديث إحصائيات الإجازات");
+            }
+        }
+        
+        /// <summary>
+        /// تحديث إحصائيات الرواتب
+        /// </summary>
+        private void UpdatePayrollStatistics(PayrollStatisticsDTO statistics)
+        {
+            if (statistics == null)
+                return;
+                
+            try
+            {
+                // تحديث مؤشرات إحصائيات الرواتب
+                kpiTotalSalaries.Value = (int)statistics.TotalSalariesCurrentPeriod;
+                kpiTotalAllowances.Value = (int)statistics.TotalAllowances;
+                kpiTotalDeductions.Value = (int)statistics.TotalDeductions;
+                
+                // تحديث مؤشرات المقارنة
+                SetComparisonIndicator(labelSalaryChange, statistics.SalaryChangePercent);
+                
+                // تحديث نسبة الخصومات المتعلقة بالحضور
+                if (statistics.TotalDeductions > 0)
+                {
+                    labelAttendanceDeductions.Text = $"خصومات الحضور: {statistics.AttendanceRelatedDeductions:N0} ({statistics.AttendanceRelatedDeductions * 100 / statistics.TotalDeductions:0.0}%)";
+                }
+                else
+                {
+                    labelAttendanceDeductions.Text = "خصومات الحضور: 0";
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل تحديث إحصائيات الرواتب");
+            }
+        }
+        
+        /// <summary>
+        /// تحديث رسم اتجاهات الحضور
+        /// </summary>
+        private void UpdateAttendanceTrendChart(AttendanceTrendChartDataDTO trendData)
+        {
+            if (trendData == null || trendData.TimeCategories == null || trendData.TimeCategories.Count == 0)
+                return;
+                
+            try
+            {
+                // تهيئة المخطط
+                chartAttendanceTrend.Series.Clear();
+                
+                // إنشاء سلسلة بيانات للحضور
+                Series attendanceSeries = new Series("نسبة الحضور", ViewType.Line);
+                attendanceSeries.ArgumentDataMember = "TimeCategory";
+                attendanceSeries.ValueDataMembers.AddRange(new string[] { "AttendanceRate" });
+                
+                // إنشاء سلسلة بيانات للتأخير
+                Series lateSeries = new Series("نسبة التأخير", ViewType.Line);
+                lateSeries.ArgumentDataMember = "TimeCategory";
+                lateSeries.ValueDataMembers.AddRange(new string[] { "LateRate" });
+                
+                // إنشاء سلسلة بيانات للغياب
+                Series absenceSeries = new Series("نسبة الغياب", ViewType.Line);
+                absenceSeries.ArgumentDataMember = "TimeCategory";
+                absenceSeries.ValueDataMembers.AddRange(new string[] { "AbsenceRate" });
+                
+                // إنشاء قائمة من كائنات البيانات
+                List<TrendDataPoint> dataPoints = new List<TrendDataPoint>();
+                for (int i = 0; i < trendData.TimeCategories.Count; i++)
+                {
+                    dataPoints.Add(new TrendDataPoint
+                    {
+                        TimeCategory = trendData.TimeCategories[i],
+                        AttendanceRate = trendData.AttendanceRates[i],
+                        LateRate = trendData.LateRates[i],
+                        AbsenceRate = trendData.AbsenceRates[i]
+                    });
+                }
+                
+                // تعيين مصدر البيانات
+                chartAttendanceTrend.DataSource = dataPoints;
+                
+                // إضافة السلاسل إلى المخطط
+                chartAttendanceTrend.Series.AddRange(new Series[] 
+                { 
+                    attendanceSeries, 
+                    lateSeries, 
+                    absenceSeries 
+                });
+                
+                // ضبط إعدادات المخطط
+                XYDiagram diagram = chartAttendanceTrend.Diagram as XYDiagram;
+                if (diagram != null)
+                {
+                    // تنسيق المحاور
+                    diagram.AxisX.Label.Angle = -45;
+                    diagram.AxisX.Label.ResolveOverlappingOptions.AllowRotate = true;
+                    diagram.AxisX.Label.ResolveOverlappingOptions.AllowStagger = true;
+                    
+                    diagram.AxisX.Title.Text = "الفترة";
+                    diagram.AxisX.Title.Visibility = DefaultBoolean.True;
+                    
+                    diagram.AxisY.Title.Text = "النسبة المئوية";
+                    diagram.AxisY.Title.Visibility = DefaultBoolean.True;
+                    
+                    // تعيين نطاق محور Y
+                    diagram.AxisY.WholeRange.SetMinMaxValues(0, 100);
+                }
+                
+                // ضبط خصائص السلاسل
+                LineSeriesView attendanceView = attendanceSeries.View as LineSeriesView;
+                if (attendanceView != null)
+                {
+                    attendanceView.LineMarkerOptions.Kind = MarkerKind.Circle;
+                    attendanceView.LineStyle.Thickness = 2;
+                    attendanceView.Color = Color.FromArgb(65, 140, 240); // أزرق
+                }
+                
+                LineSeriesView lateView = lateSeries.View as LineSeriesView;
+                if (lateView != null)
+                {
+                    lateView.LineMarkerOptions.Kind = MarkerKind.Triangle;
+                    lateView.LineStyle.Thickness = 2;
+                    lateView.Color = Color.FromArgb(252, 180, 65); // برتقالي
+                }
+                
+                LineSeriesView absenceView = absenceSeries.View as LineSeriesView;
+                if (absenceView != null)
+                {
+                    absenceView.LineMarkerOptions.Kind = MarkerKind.Square;
+                    absenceView.LineStyle.Thickness = 2;
+                    absenceView.Color = Color.FromArgb(224, 64, 10); // أحمر
+                }
+                
+                // تحديث العنوان
+                chartAttendanceTrend.Titles[0].Text = "اتجاهات الحضور والتأخير والغياب";
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل تحديث مخطط اتجاهات الحضور");
+            }
+        }
+        
+        /// <summary>
+        /// تحديث رسم الحضور حسب القسم
+        /// </summary>
+        private void UpdateDepartmentAttendanceChart(DepartmentAttendanceDataDTO deptData)
+        {
+            if (deptData == null || deptData.DepartmentNames == null || deptData.DepartmentNames.Count == 0)
+                return;
+                
+            try
+            {
+                // تهيئة المخطط
+                chartDepartmentAttendance.Series.Clear();
+                
+                // إنشاء سلسلة بيانات للحضور
+                Series attendanceSeries = new Series("نسبة الحضور", ViewType.Bar);
+                attendanceSeries.ArgumentDataMember = "Department";
+                attendanceSeries.ValueDataMembers.AddRange(new string[] { "AttendanceRate" });
+                
+                // إنشاء سلسلة بيانات للتأخير
+                Series lateSeries = new Series("نسبة التأخير", ViewType.Bar);
+                lateSeries.ArgumentDataMember = "Department";
+                lateSeries.ValueDataMembers.AddRange(new string[] { "LateRate" });
+                
+                // إنشاء سلسلة بيانات للإجازات
+                Series leaveSeries = new Series("نسبة الإجازات", ViewType.Bar);
+                leaveSeries.ArgumentDataMember = "Department";
+                leaveSeries.ValueDataMembers.AddRange(new string[] { "LeaveRate" });
+                
+                // إنشاء قائمة من كائنات البيانات
+                List<DepartmentDataPoint> dataPoints = new List<DepartmentDataPoint>();
+                for (int i = 0; i < deptData.DepartmentNames.Count; i++)
+                {
+                    dataPoints.Add(new DepartmentDataPoint
+                    {
+                        Department = deptData.DepartmentNames[i],
+                        AttendanceRate = deptData.AttendanceRates[i],
+                        LateRate = deptData.LateRates[i],
+                        LeaveRate = deptData.LeaveRates[i]
+                    });
+                }
+                
+                // تعيين مصدر البيانات
+                chartDepartmentAttendance.DataSource = dataPoints;
+                
+                // إضافة السلاسل إلى المخطط
+                chartDepartmentAttendance.Series.AddRange(new Series[] 
+                { 
+                    attendanceSeries, 
+                    lateSeries, 
+                    leaveSeries 
+                });
+                
+                // ضبط إعدادات المخطط
+                XYDiagram diagram = chartDepartmentAttendance.Diagram as XYDiagram;
+                if (diagram != null)
+                {
+                    // تنسيق المحاور
+                    diagram.AxisX.Label.Angle = -45;
+                    diagram.AxisX.Label.ResolveOverlappingOptions.AllowRotate = true;
+                    diagram.AxisX.Label.ResolveOverlappingOptions.AllowStagger = true;
+                    
+                    diagram.AxisX.Title.Text = "الأقسام";
+                    diagram.AxisX.Title.Visibility = DefaultBoolean.True;
+                    
+                    diagram.AxisY.Title.Text = "النسبة المئوية";
+                    diagram.AxisY.Title.Visibility = DefaultBoolean.True;
+                    
+                    // تعيين نطاق محور Y
+                    diagram.AxisY.WholeRange.SetMinMaxValues(0, 100);
+                }
+                
+                // ضبط الألوان
+                ((BarSeriesView)attendanceSeries.View).Color = Color.FromArgb(65, 140, 240); // أزرق
+                ((BarSeriesView)lateSeries.View).Color = Color.FromArgb(252, 180, 65); // برتقالي
+                ((BarSeriesView)leaveSeries.View).Color = Color.FromArgb(140, 193, 82); // أخضر
+                
+                // تهيئة وضع المقارنة الجانبية
+                ((XYDiagram)chartDepartmentAttendance.Diagram).EnableAxisXZooming = true;
+                ((BarSeriesView)attendanceSeries.View).BarDistance = 0.5;
+                ((BarSeriesView)attendanceSeries.View).BarWidth = 0.5;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل تحديث مخطط الحضور حسب القسم");
+            }
+        }
+        
+        /// <summary>
+        /// تحديث رسم الحضور حسب أيام الأسبوع
+        /// </summary>
+        private void UpdateWeekdayAttendanceChart(WeekdayAttendanceDataDTO weekdayData)
+        {
+            if (weekdayData == null || weekdayData.Weekdays == null || weekdayData.Weekdays.Count == 0)
+                return;
+                
+            try
+            {
+                // تهيئة المخطط
+                chartWeekdayAttendance.Series.Clear();
+                
+                // إنشاء سلسلة بيانات للحضور
+                Series attendanceSeries = new Series("نسبة الحضور", ViewType.Bar);
+                attendanceSeries.ArgumentDataMember = "Weekday";
+                attendanceSeries.ValueDataMembers.AddRange(new string[] { "AttendanceRate" });
+                
+                // إنشاء سلسلة بيانات للتأخير
+                Series lateSeries = new Series("نسبة التأخير", ViewType.Bar);
+                lateSeries.ArgumentDataMember = "Weekday";
+                lateSeries.ValueDataMembers.AddRange(new string[] { "LateRate" });
+                
+                // إنشاء سلسلة بيانات للغياب
+                Series absenceSeries = new Series("نسبة الغياب", ViewType.Bar);
+                absenceSeries.ArgumentDataMember = "Weekday";
+                absenceSeries.ValueDataMembers.AddRange(new string[] { "AbsenceRate" });
+                
+                // إنشاء قائمة من كائنات البيانات
+                List<WeekdayDataPoint> dataPoints = new List<WeekdayDataPoint>();
+                for (int i = 0; i < weekdayData.Weekdays.Count; i++)
+                {
+                    dataPoints.Add(new WeekdayDataPoint
+                    {
+                        Weekday = weekdayData.Weekdays[i],
+                        AttendanceRate = weekdayData.AttendanceRates[i],
+                        LateRate = weekdayData.LateRates[i],
+                        AbsenceRate = weekdayData.AbsenceRates[i]
+                    });
+                }
+                
+                // تعيين مصدر البيانات
+                chartWeekdayAttendance.DataSource = dataPoints;
+                
+                // إضافة السلاسل إلى المخطط
+                chartWeekdayAttendance.Series.AddRange(new Series[] 
+                { 
+                    attendanceSeries, 
+                    lateSeries, 
+                    absenceSeries 
+                });
+                
+                // ضبط إعدادات المخطط
+                XYDiagram diagram = chartWeekdayAttendance.Diagram as XYDiagram;
+                if (diagram != null)
+                {
+                    // تنسيق المحاور
+                    diagram.AxisX.Title.Text = "أيام الأسبوع";
+                    diagram.AxisX.Title.Visibility = DefaultBoolean.True;
+                    
+                    diagram.AxisY.Title.Text = "النسبة المئوية";
+                    diagram.AxisY.Title.Visibility = DefaultBoolean.True;
+                    
+                    // تعيين نطاق محور Y
+                    diagram.AxisY.WholeRange.SetMinMaxValues(0, 100);
+                }
+                
+                // ضبط الألوان
+                ((BarSeriesView)attendanceSeries.View).Color = Color.FromArgb(65, 140, 240); // أزرق
+                ((BarSeriesView)lateSeries.View).Color = Color.FromArgb(252, 180, 65); // برتقالي
+                ((BarSeriesView)absenceSeries.View).Color = Color.FromArgb(224, 64, 10); // أحمر
+                
+                // تهيئة وضع المقارنة الجانبية
+                ((XYDiagram)chartWeekdayAttendance.Diagram).EnableAxisXZooming = true;
+                ((BarSeriesView)attendanceSeries.View).BarDistance = 0.5;
+                ((BarSeriesView)attendanceSeries.View).BarWidth = 0.5;
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل تحديث مخطط الحضور حسب أيام الأسبوع");
+            }
+        }
+        
+        /// <summary>
+        /// تحديث بيانات مؤشرات الأداء الرئيسية
+        /// </summary>
+        private void UpdateKPIData(KPIDataDTO kpiData)
+        {
+            if (kpiData == null)
+                return;
+                
+            try
+            {
+                // تحديث مؤشرات الأداء الرئيسية
+                gaugeAttendanceCompliance.Value = (float)kpiData.AttendanceComplianceRate;
+                gaugeAttendanceCompliance.Scales[0].CustomRanges[1].StartValue = kpiData.AttendanceComplianceTarget;
+                labelAttendanceComplianceTarget.Text = $"المستهدف: {kpiData.AttendanceComplianceTarget}%";
+                
+                gaugeLateRate.Value = (float)kpiData.LateRate;
+                gaugeLateRate.Scales[0].CustomRanges[0].EndValue = kpiData.LateRateTarget;
+                labelLateRateTarget.Text = $"المستهدف: {kpiData.LateRateTarget}%";
+                
+                gaugeEmployeeTurnover.Value = (float)kpiData.EmployeeTurnoverRate;
+                gaugeEmployeeTurnover.Scales[0].CustomRanges[0].EndValue = kpiData.EmployeeTurnoverTarget;
+                labelTurnoverTarget.Text = $"المستهدف: {kpiData.EmployeeTurnoverTarget}%";
+                
+                gaugeLeaveUtilization.Value = (float)kpiData.LeaveUtilizationRate;
+                gaugeLeaveUtilization.Scales[0].CustomRanges[1].StartValue = kpiData.LeaveUtilizationTarget;
+                labelLeaveUtilizationTarget.Text = $"المستهدف: {kpiData.LeaveUtilizationTarget}%";
+                
+                gaugeSalaryCostRatio.Value = (float)kpiData.SalaryToTotalCostRatio;
+                gaugeSalaryCostRatio.Scales[0].CustomRanges[0].EndValue = kpiData.SalaryToTotalCostTarget;
+                labelSalaryCostTarget.Text = $"المستهدف: {kpiData.SalaryToTotalCostTarget}%";
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل تحديث بيانات مؤشرات الأداء الرئيسية");
+            }
+        }
+        
+        /// <summary>
+        /// ضبط مؤشر المقارنة (زيادة/نقصان)
+        /// </summary>
+        private void SetComparisonIndicator(LabelControl label, decimal changePercent, decimal targetValue = 0)
+        {
+            if (label == null)
+                return;
+                
+            if (targetValue > 0)
+            {
+                // المقارنة مع القيمة المستهدفة
+                if (changePercent >= targetValue)
+                {
+                    label.ForeColor = Color.Green;
+                    label.Text = $"{changePercent:0.0}% ▲";
+                }
+                else
+                {
+                    label.ForeColor = Color.Red;
+                    label.Text = $"{changePercent:0.0}% ▼";
+                }
+            }
+            else
+            {
+                // المقارنة مع الفترة السابقة
+                if (changePercent > 0)
+                {
+                    label.ForeColor = Color.Green;
+                    label.Text = $"+{changePercent:0.0}% ▲";
+                }
+                else if (changePercent < 0)
+                {
+                    label.ForeColor = Color.Red;
+                    label.Text = $"{changePercent:0.0}% ▼";
+                }
+                else
+                {
+                    label.ForeColor = Color.Gray;
+                    label.Text = "0% ◄►";
+                }
+            }
+        }
+        
+        /// <summary>
+        /// كائن نقطة بيانات لرسم اتجاهات الحضور
+        /// </summary>
+        private class TrendDataPoint
+        {
+            public string TimeCategory { get; set; }
+            public decimal AttendanceRate { get; set; }
+            public decimal LateRate { get; set; }
+            public decimal AbsenceRate { get; set; }
+        }
+        
+        /// <summary>
+        /// كائن نقطة بيانات للرسم حسب القسم
+        /// </summary>
+        private class DepartmentDataPoint
+        {
+            public string Department { get; set; }
+            public decimal AttendanceRate { get; set; }
+            public decimal LateRate { get; set; }
+            public decimal LeaveRate { get; set; }
+        }
+        
+        /// <summary>
+        /// كائن نقطة بيانات للرسم حسب يوم الأسبوع
+        /// </summary>
+        private class WeekdayDataPoint
+        {
+            public string Weekday { get; set; }
+            public decimal AttendanceRate { get; set; }
+            public decimal LateRate { get; set; }
+            public decimal AbsenceRate { get; set; }
         }
     }
 }

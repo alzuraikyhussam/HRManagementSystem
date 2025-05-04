@@ -269,6 +269,97 @@ namespace HR.DataAccess
                     var result = permissionCommand.ExecuteScalar();
                     summary.PermissionDays = Convert.ToInt32(result);
                 }
+                
+                // إضافة: الحصول على ملخص لساعات العمل حسب الأسبوع
+                string weeklyQuery = @"
+                    SELECT 
+                        DATEPART(wk, AttendanceDate) AS WeekNumber,
+                        SUM(WorkedMinutes) AS TotalMinutes
+                    FROM AttendanceRecords 
+                    WHERE EmployeeID = @EmployeeID 
+                    AND AttendanceDate BETWEEN @StartDate AND @EndDate
+                    GROUP BY DATEPART(wk, AttendanceDate)
+                    ORDER BY WeekNumber";
+                
+                using (SqlCommand weeklyCommand = new SqlCommand(weeklyQuery, connection))
+                {
+                    weeklyCommand.Parameters.AddWithValue("@EmployeeID", employeeId);
+                    weeklyCommand.Parameters.AddWithValue("@StartDate", startDate);
+                    weeklyCommand.Parameters.AddWithValue("@EndDate", endDate);
+                    
+                    summary.WeeklyHours = new Dictionary<int, decimal>();
+                    
+                    using (SqlDataReader reader = weeklyCommand.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int weekNumber = Convert.ToInt32(reader["WeekNumber"]);
+                            int minutes = Convert.ToInt32(reader["TotalMinutes"]);
+                            summary.WeeklyHours[weekNumber] = Math.Round((decimal)minutes / 60, 2);
+                        }
+                    }
+                }
+                
+                // إضافة: الحصول على ملخص لأنماط الحضور حسب أيام الأسبوع
+                string dayOfWeekQuery = @"
+                    SELECT 
+                        DATEPART(dw, AttendanceDate) AS DayOfWeek,
+                        AVG(CASE WHEN TimeIn IS NOT NULL THEN 
+                            DATEDIFF(MINUTE, CAST('00:00:00' AS TIME), CAST(TimeIn AS TIME)) 
+                            ELSE NULL END) AS AvgTimeIn,
+                        AVG(CASE WHEN TimeOut IS NOT NULL THEN 
+                            DATEDIFF(MINUTE, CAST('00:00:00' AS TIME), CAST(TimeOut AS TIME)) 
+                            ELSE NULL END) AS AvgTimeOut,
+                        COUNT(*) AS DayCount,
+                        SUM(CASE WHEN Status LIKE N'%متأخر%' THEN 1 ELSE 0 END) AS LateCount
+                    FROM AttendanceRecords 
+                    WHERE EmployeeID = @EmployeeID 
+                    AND AttendanceDate BETWEEN @StartDate AND @EndDate
+                    GROUP BY DATEPART(dw, AttendanceDate)
+                    ORDER BY DayOfWeek";
+                
+                using (SqlCommand dayOfWeekCommand = new SqlCommand(dayOfWeekQuery, connection))
+                {
+                    dayOfWeekCommand.Parameters.AddWithValue("@EmployeeID", employeeId);
+                    dayOfWeekCommand.Parameters.AddWithValue("@StartDate", startDate);
+                    dayOfWeekCommand.Parameters.AddWithValue("@EndDate", endDate);
+                    
+                    summary.DayOfWeekPatterns = new List<DayOfWeekPattern>();
+                    
+                    using (SqlDataReader reader = dayOfWeekCommand.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int dayOfWeek = Convert.ToInt32(reader["DayOfWeek"]);
+                            object avgTimeInObj = reader["AvgTimeIn"];
+                            object avgTimeOutObj = reader["AvgTimeOut"];
+                            int dayCount = Convert.ToInt32(reader["DayCount"]);
+                            int lateCount = Convert.ToInt32(reader["LateCount"]);
+                            
+                            var pattern = new DayOfWeekPattern
+                            {
+                                DayOfWeek = dayOfWeek,
+                                DayCount = dayCount
+                            };
+                            
+                            if (avgTimeInObj != DBNull.Value)
+                            {
+                                int minutes = Convert.ToInt32(avgTimeInObj);
+                                pattern.AverageTimeIn = TimeSpan.FromMinutes(minutes);
+                            }
+                            
+                            if (avgTimeOutObj != DBNull.Value)
+                            {
+                                int minutes = Convert.ToInt32(avgTimeOutObj);
+                                pattern.AverageTimeOut = TimeSpan.FromMinutes(minutes);
+                            }
+                            
+                            pattern.LateFrequency = dayCount > 0 ? (decimal)lateCount / dayCount : 0;
+                            
+                            summary.DayOfWeekPatterns.Add(pattern);
+                        }
+                    }
+                }
             }
             
             // الحصول على اسم الموظف والقسم
@@ -279,7 +370,248 @@ namespace HR.DataAccess
                 summary.DepartmentName = employee.DepartmentName;
             }
             
+            // إضافة: حساب الإحصائيات المتقدمة
+            CalculateAdvancedStatistics(summary);
+            
             return summary;
+        }
+        
+        /// <summary>
+        /// حساب الإحصائيات المتقدمة لملخص الحضور
+        /// </summary>
+        private void CalculateAdvancedStatistics(AttendanceSummary summary)
+        {
+            // حساب متوسط ساعات العمل اليومية
+            if (summary.PresentDays > 0)
+            {
+                summary.AverageDailyWorkHours = Math.Round((decimal)summary.TotalWorkedMinutes / (summary.PresentDays * 60), 2);
+            }
+            
+            // حساب معدل الالتزام بوقت الحضور
+            int totalDaysWithAttendance = summary.PresentDays + summary.LateDays;
+            if (totalDaysWithAttendance > 0)
+            {
+                summary.PunctualityRate = Math.Round(((decimal)(totalDaysWithAttendance - summary.LateDays) / totalDaysWithAttendance) * 100, 2);
+            }
+            
+            // حساب معدل الالتزام بوقت الانصراف
+            if (totalDaysWithAttendance > 0)
+            {
+                summary.DepartureComplianceRate = Math.Round(((decimal)(totalDaysWithAttendance - summary.EarlyDepartureDays) / totalDaysWithAttendance) * 100, 2);
+            }
+            
+            // حساب معدل الالتزام العام
+            summary.OverallComplianceRate = Math.Round(((decimal)summary.PresentDays / (summary.TotalDays)) * 100, 2);
+            
+            // حساب نسبة الساعات الإضافية
+            int regularMinutes = summary.PresentDays * 8 * 60; // 8 ساعات لكل يوم عمل
+            if (regularMinutes > 0)
+            {
+                summary.OvertimeRate = Math.Round(((decimal)summary.TotalOvertimeMinutes / regularMinutes) * 100, 2);
+            }
+            
+            // تحديد اليوم الأكثر تأخيراً في الأسبوع
+            if (summary.DayOfWeekPatterns != null && summary.DayOfWeekPatterns.Count > 0)
+            {
+                var mostLateDayPattern = summary.DayOfWeekPatterns
+                    .OrderByDescending(p => p.LateFrequency)
+                    .FirstOrDefault();
+                    
+                if (mostLateDayPattern != null)
+                {
+                    summary.MostLateDayOfWeek = mostLateDayPattern.DayOfWeek;
+                    summary.MostLateDayFrequency = mostLateDayPattern.LateFrequency;
+                }
+            }
+        }
+        
+        /// <summary>
+        /// الحصول على عدد الموظفين الحاضرين اليوم
+        /// </summary>
+        public int GetEmployeesPresentCount(DateTime date)
+        {
+            using (SqlConnection connection = _connectionManager.GetConnection())
+            {
+                string query = @"
+                    SELECT COUNT(*) 
+                    FROM AttendanceRecords 
+                    WHERE AttendanceDate = @Date 
+                    AND TimeIn IS NOT NULL 
+                    AND Status NOT LIKE N'%غائب%' 
+                    AND Status NOT LIKE N'%إجازة%'";
+                
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Date", date.Date);
+                    
+                    connection.Open();
+                    
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        return Convert.ToInt32(result);
+                    }
+                }
+            }
+            
+            return 0;
+        }
+        
+        /// <summary>
+        /// الحصول على عدد الموظفين المتأخرين اليوم
+        /// </summary>
+        public int GetEmployeesLateCount(DateTime date)
+        {
+            using (SqlConnection connection = _connectionManager.GetConnection())
+            {
+                string query = @"
+                    SELECT COUNT(*) 
+                    FROM AttendanceRecords 
+                    WHERE AttendanceDate = @Date 
+                    AND (Status LIKE N'%متأخر%' OR LateMinutes > 0)";
+                
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Date", date.Date);
+                    
+                    connection.Open();
+                    
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        return Convert.ToInt32(result);
+                    }
+                }
+            }
+            
+            return 0;
+        }
+        
+        /// <summary>
+        /// الحصول على عدد الموظفين المغادرين مبكراً اليوم
+        /// </summary>
+        public int GetEmployeesEarlyDepartureCount(DateTime date)
+        {
+            using (SqlConnection connection = _connectionManager.GetConnection())
+            {
+                string query = @"
+                    SELECT COUNT(*) 
+                    FROM AttendanceRecords 
+                    WHERE AttendanceDate = @Date 
+                    AND (Status LIKE N'%مغادرة مبكرة%' OR EarlyDepartureMinutes > 0)";
+                
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@Date", date.Date);
+                    
+                    connection.Open();
+                    
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        return Convert.ToInt32(result);
+                    }
+                }
+            }
+            
+            return 0;
+        }
+        
+        /// <summary>
+        /// الحصول على إجمالي أيام الحضور في الشهر الماضي
+        /// </summary>
+        public int GetTotalAttendanceDaysLastMonth()
+        {
+            DateTime firstDayLastMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddMonths(-1);
+            DateTime lastDayLastMonth = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1).AddDays(-1);
+            
+            using (SqlConnection connection = _connectionManager.GetConnection())
+            {
+                string query = @"
+                    SELECT COUNT(*) 
+                    FROM AttendanceRecords 
+                    WHERE AttendanceDate BETWEEN @StartDate AND @EndDate 
+                    AND TimeIn IS NOT NULL 
+                    AND Status NOT LIKE N'%غائب%'";
+                
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@StartDate", firstDayLastMonth);
+                    command.Parameters.AddWithValue("@EndDate", lastDayLastMonth);
+                    
+                    connection.Open();
+                    
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        return Convert.ToInt32(result);
+                    }
+                }
+            }
+            
+            return 0;
+        }
+        
+        /// <summary>
+        /// الحصول على متوسط دقائق التأخير للفترة المحددة
+        /// </summary>
+        public decimal GetAverageLateMinutes(DateTime fromDate, DateTime toDate)
+        {
+            using (SqlConnection connection = _connectionManager.GetConnection())
+            {
+                string query = @"
+                    SELECT AVG(CAST(LateMinutes AS FLOAT)) 
+                    FROM AttendanceRecords 
+                    WHERE AttendanceDate BETWEEN @StartDate AND @EndDate 
+                    AND LateMinutes > 0";
+                
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@StartDate", fromDate.Date);
+                    command.Parameters.AddWithValue("@EndDate", toDate.Date);
+                    
+                    connection.Open();
+                    
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        return Convert.ToDecimal(result);
+                    }
+                }
+            }
+            
+            return 0;
+        }
+        
+        /// <summary>
+        /// الحصول على متوسط ساعات العمل اليومية للفترة المحددة
+        /// </summary>
+        public decimal GetAverageDailyWorkHours(DateTime fromDate, DateTime toDate)
+        {
+            using (SqlConnection connection = _connectionManager.GetConnection())
+            {
+                string query = @"
+                    SELECT AVG(CAST(WorkedMinutes AS FLOAT) / 60.0) 
+                    FROM AttendanceRecords 
+                    WHERE AttendanceDate BETWEEN @StartDate AND @EndDate 
+                    AND WorkedMinutes > 0";
+                
+                using (SqlCommand command = new SqlCommand(query, connection))
+                {
+                    command.Parameters.AddWithValue("@StartDate", fromDate.Date);
+                    command.Parameters.AddWithValue("@EndDate", toDate.Date);
+                    
+                    connection.Open();
+                    
+                    object result = command.ExecuteScalar();
+                    if (result != null && result != DBNull.Value)
+                    {
+                        return Convert.ToDecimal(result);
+                    }
+                }
+            }
+            
+            return 0;
         }
         
         /// <summary>
