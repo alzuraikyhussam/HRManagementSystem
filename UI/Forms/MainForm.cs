@@ -337,6 +337,11 @@ namespace HR.UI.Forms
                 {
                     ShowSpecificReport("Payroll");
                 }
+                else if (element == accordionControlAttendanceDevices)
+                {
+                    // عرض واجهة أجهزة البصمة
+                    ShowBiometricDevicesForm();
+                }
                 else if (element == accordionControlSettings)
                 {
                     ShowSettings();
@@ -437,6 +442,14 @@ namespace HR.UI.Forms
                 
                 // تحديث الأيقونة
                 svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("attendance");
+                
+                // إضافة أزرار الإجراءات السريعة
+                ClearActionButtons();
+                
+                // إضافة زر لإدارة أجهزة البصمة
+                var btnBiometricDevices = CreateActionButton("أجهزة البصمة", "biometric");
+                btnBiometricDevices.Click += (s, e) => ShowBiometricDevicesForm();
+                panelControlActions.Controls.Add(btnBiometricDevices);
                 
                 // إنشاء نموذج إدارة الحضور
                 var attendanceRecordsForm = new Attendance.AttendanceRecordsForm();
@@ -560,6 +573,85 @@ namespace HR.UI.Forms
                     "خطأ",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
+            }
+        }
+        
+        /// <summary>
+        /// عرض نموذج أجهزة البصمة
+        /// </summary>
+        private void ShowBiometricDevicesForm()
+        {
+            try
+            {
+                // تحديث العنوان
+                labelControlPageTitle.Text = "إدارة أجهزة البصمة";
+                
+                // تحديث الأيقونة
+                svgImageBoxPageIcon.SvgImage = svgImageCollection.GetImageByName("biometric");
+                
+                // إنشاء نموذج أجهزة البصمة
+                var biometricDevicesForm = new UI.Forms.Attendance.BiometricDevicesForm();
+                
+                // فتح النموذج في منطقة العمل
+                OpenForm(biometricDevicesForm);
+            }
+            catch (Exception ex)
+            {
+                LogManager.LogException(ex, "فشل عرض نموذج أجهزة البصمة");
+                XtraMessageBox.Show(
+                    $"حدث خطأ أثناء عرض نموذج أجهزة البصمة: {ex.Message}",
+                    "خطأ",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+        }
+
+        /// <summary>
+        /// إنشاء زر إجراء سريع
+        /// </summary>
+        /// <param name="text">نص الزر</param>
+        /// <param name="iconName">اسم الأيقونة</param>
+        /// <returns>الزر الجديد</returns>
+        private SimpleButton CreateActionButton(string text, string iconName)
+        {
+            SimpleButton button = new SimpleButton();
+            button.Text = text;
+            button.ImageOptions.SvgImage = svgImageCollection.GetImageByName(iconName);
+            button.Appearance.Font = new Font("Tahoma", 9F, FontStyle.Regular);
+            button.Size = new Size(120, 40);
+            button.Padding = new Padding(5);
+            button.Margin = new Padding(5);
+            
+            return button;
+        }
+        
+        /// <summary>
+        /// إزالة كافة أزرار الإجراءات السريعة
+        /// </summary>
+        private void ClearActionButtons()
+        {
+            // التحقق من وجود لوحة الإجراءات قبل محاولة مسح محتواها
+            if (panelControlActions != null)
+            {
+                panelControlActions.Controls.Clear();
+            }
+            else
+            {
+                // إنشاء لوحة الإجراءات إذا لم تكن موجودة
+                panelControlActions = new DevExpress.XtraEditors.PanelControl();
+                panelControlActions.Appearance.BackColor = System.Drawing.Color.WhiteSmoke;
+                panelControlActions.Appearance.Options.UseBackColor = true;
+                panelControlActions.BorderStyle = DevExpress.XtraEditors.Controls.BorderStyles.NoBorder;
+                panelControlActions.Dock = System.Windows.Forms.DockStyle.Top;
+                panelControlActions.Location = new System.Drawing.Point(0, 50);
+                panelControlActions.Name = "panelControlActions";
+                panelControlActions.Size = new System.Drawing.Size(980, 68);
+                
+                // إضافة اللوحة إلى النموذج
+                this.Controls.Add(panelControlActions);
+                panelTitle.BringToFront();
+                panelControlActions.BringToFront();
+                panelContent.BringToFront();
             }
         }
         

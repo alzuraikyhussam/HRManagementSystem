@@ -474,42 +474,13 @@ namespace HR.UI.Forms.Attendance
                     return;
                 }
                 
-                this.Cursor = Cursors.WaitCursor;
-                
-                // التحقق من حالة الاتصال
-                if (selectedDevice.ConnectionStatus == "Connected")
+                // فتح نموذج عمليات الجهاز
+                using (ZKTecoOperationsForm operationsForm = new ZKTecoOperationsForm(selectedDevice))
                 {
-                    // قطع الاتصال بالجهاز
-                    bool result = _deviceManager.DisconnectDevice(selectedDevice.ID);
-                    if (result)
-                    {
-                        XtraMessageBox.Show($"تم قطع الاتصال بجهاز البصمة '{selectedDevice.DeviceName}' بنجاح.", "نجاح", 
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        
-                        LoadData();
-                    }
-                    else
-                    {
-                        XtraMessageBox.Show($"فشل قطع الاتصال بجهاز البصمة '{selectedDevice.DeviceName}'.", "خطأ", 
-                            MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
-                }
-                else
-                {
-                    // الاتصال بالجهاز
-                    bool result = _deviceManager.ConnectDevice(selectedDevice.ID);
-                    if (result)
-                    {
-                        XtraMessageBox.Show($"تم الاتصال بجهاز البصمة '{selectedDevice.DeviceName}' بنجاح.", "نجاح", 
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        
-                        LoadData();
-                    }
-                    else
-                    {
-                        XtraMessageBox.Show($"فشل الاتصال بجهاز البصمة '{selectedDevice.DeviceName}'.", "خطأ", 
-                            MessageBoxButtons.OK, MessageBoxIcon.Error);
-                    }
+                    operationsForm.ShowDialog();
+                    
+                    // تحديث البيانات بعد إغلاق النموذج
+                    LoadData();
                 }
             }
             catch (Exception ex)
@@ -518,14 +489,10 @@ namespace HR.UI.Forms.Attendance
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 LogManager.LogException(ex);
             }
-            finally
-            {
-                this.Cursor = Cursors.Default;
-            }
         }
         
         /// <summary>
-        /// حدث النقر على زر استيراد السجلات
+        /// حدث النقر على زر استيراد سجلات الحضور
         /// </summary>
         private void barButtonItemImport_ItemClick(object sender, ItemClickEventArgs e)
         {

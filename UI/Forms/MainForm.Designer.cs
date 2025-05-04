@@ -73,6 +73,7 @@ namespace HR.UI.Forms
             this.svgImageBoxPageIcon = new DevExpress.XtraEditors.SvgImageBox();
             this.labelControlPageTitle = new DevExpress.XtraEditors.LabelControl();
             this.panelContent = new DevExpress.XtraEditors.PanelControl();
+            this.panelControlActions = new DevExpress.XtraEditors.PanelControl();
             this.fluentFormDefaultManager1 = new DevExpress.XtraBars.FluentDesignSystem.FluentFormDefaultManager(this.components);
             this.svgImageCollection = new DevExpress.Utils.SvgImageCollection(this.components);
             ((System.ComponentModel.ISupportInitialize)(this.accordionControl)).BeginInit();
@@ -611,6 +612,7 @@ namespace HR.UI.Forms
             this.svgImageCollection.Add("warning", "image://svgimages/icon builder/actions_question.svg");
             this.svgImageCollection.Add("error", "image://svgimages/icon builder/actions_deletecircled.svg");
             this.svgImageCollection.Add("success", "image://svgimages/icon builder/actions_check.svg");
+            this.svgImageCollection.Add("biometric", "image://svgimages/dashboards/touch.svg");
             // 
             // MainForm
             // 
@@ -700,5 +702,6 @@ namespace HR.UI.Forms
         private DevExpress.XtraEditors.LabelControl labelControlPageTitle;
         private DevExpress.XtraEditors.SvgImageBox svgImageBoxPageIcon;
         private DevExpress.Utils.SvgImageCollection svgImageCollection;
+        private DevExpress.XtraEditors.PanelControl panelControlActions;
     }
 }
