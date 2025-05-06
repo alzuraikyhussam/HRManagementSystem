@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  
+  <!-- Database Errors -->
+  <data name="DatabaseConnectionError" xml:space="preserve">
+    <value>تعذر الاتصال بقاعدة البيانات. يرجى التحقق من إعدادات الاتصال</value>
+  </data>
+  <data name="DataRetrievalError" xml:space="preserve">
+    <value>حدث خطأ أثناء استرجاع البيانات</value>
+  </data>
+  <data name="DataSaveError" xml:space="preserve">
+    <value>حدث خطأ أثناء حفظ البيانات</value>
+  </data>
+  <data name="DataDeleteError" xml:space="preserve">
+    <value>حدث خطأ أثناء حذف البيانات</value>
+  </data>
+  <data name="RecordNotFound" xml:space="preserve">
+    <value>السجل المطلوب غير موجود</value>
+  </data>
+  <data name="DuplicateRecord" xml:space="preserve">
+    <value>السجل موجود مسبقاً</value>
+  </data>
+  <data name="ForeignKeyConstraint" xml:space="preserve">
+    <value>لا يمكن حذف هذا السجل لارتباطه بسجلات أخرى</value>
+  </data>
+  
+  <!-- Validation Errors -->
+  <data name="RequiredFieldError" xml:space="preserve">
+    <value>هذا الحقل مطلوب</value>
+  </data>
+  <data name="InvalidEmailFormat" xml:space="preserve">
+    <value>البريد الإلكتروني غير صحيح</value>
+  </data>
+  <data name="InvalidNumberFormat" xml:space="preserve">
+    <value>الرقم غير صحيح</value>
+  </data>
+  <data name="InvalidDateFormat" xml:space="preserve">
+    <value>التاريخ غير صحيح</value>
+  </data>
+  <data name="StringTooLong" xml:space="preserve">
+    <value>النص طويل جداً</value>
+  </data>
+  <data name="ValueOutOfRange" xml:space="preserve">
+    <value>القيمة خارج النطاق المسموح</value>
+  </data>
+  <data name="DateRangeInvalid" xml:space="preserve">
+    <value>نطاق التاريخ غير صحيح</value>
+  </data>
+  
+  <!-- Authentication Errors -->
+  <data name="InvalidCredentials" xml:space="preserve">
+    <value>اسم المستخدم أو كلمة المرور غير صحيحة</value>
+  </data>
+  <data name="AccountLocked" xml:space="preserve">
+    <value>الحساب مقفل. يرجى الاتصال بالمسؤول</value>
+  </data>
+  <data name="AccountDisabled" xml:space="preserve">
+    <value>الحساب معطل. يرجى الاتصال بالمسؤول</value>
+  </data>
+  <data name="AccessDenied" xml:space="preserve">
+    <value>ليس لديك صلاحية للوصول إلى هذه الميزة</value>
+  </data>
+  <data name="SessionExpired" xml:space="preserve">
+    <value>انتهت صلاحية الجلسة. يرجى تسجيل الدخول مرة أخرى</value>
+  </data>
+  <data name="PasswordMismatch" xml:space="preserve">
+    <value>كلمة المرور وتأكيدها غير متطابقين</value>
+  </data>
+  <data name="WeakPassword" xml:space="preserve">
+    <value>كلمة المرور ضعيفة. يجب أن تحتوي على 8 أحرف على الأقل وتتضمن أحرفاً كبيرة وصغيرة وأرقاماً ورموزاً</value>
+  </data>
+  
+  <!-- File Errors -->
+  <data name="FileNotFound" xml:space="preserve">
+    <value>الملف غير موجود</value>
+  </data>
+  <data name="FileAccessDenied" xml:space="preserve">
+    <value>ليس لديك صلاحية للوصول إلى الملف</value>
+  </data>
+  <data name="FileSizeTooLarge" xml:space="preserve">
+    <value>حجم الملف كبير جداً</value>
+  </data>
+  <data name="InvalidFileType" xml:space="preserve">
+    <value>نوع الملف غير مدعوم</value>
+  </data>
+  <data name="FileUploadError" xml:space="preserve">
+    <value>حدث خطأ أثناء رفع الملف</value>
+  </data>
+  <data name="FileDeleteError" xml:space="preserve">
+    <value>حدث خطأ أثناء حذف الملف</value>
+  </data>
+  <data name="FileReadError" xml:space="preserve">
+    <value>حدث خطأ أثناء قراءة الملف</value>
+  </data>
+  
+  <!-- Business Logic Errors -->
+  <data name="InsufficientLeaveBalance" xml:space="preserve">
+    <value>رصيد الإجازة غير كافٍ</value>
+  </data>
+  <data name="LeaveRequestPeriodOverlap" xml:space="preserve">
+    <value>فترة الإجازة تتداخل مع إجازة موجودة مسبقاً</value>
+  </data>
+  <data name="CannotModifyApprovedLeave" xml:space="preserve">
+    <value>لا يمكن تعديل الإجازة بعد الموافقة عليها</value>
+  </data>
+  <data name="CannotDeleteActiveEmployee" xml:space="preserve">
+    <value>لا يمكن حذف موظف نشط</value>
+  </data>
+  <data name="InvalidAttendanceRecord" xml:space="preserve">
+    <value>سجل الحضور غير صحيح</value>
+  </data>
+  <data name="PayrollAlreadyProcessed" xml:space="preserve">
+    <value>تمت معالجة الراتب لهذا الشهر بالفعل</value>
+  </data>
+  <data name="DocumentExpiryDateInvalid" xml:space="preserve">
+    <value>تاريخ انتهاء الصلاحية غير صحيح</value>
+  </data>
+  
+  <!-- System Errors -->
+  <data name="SystemError" xml:space="preserve">
+    <value>حدث خطأ في النظام. يرجى الاتصال بالدعم الفني</value>
+  </data>
+  <data name="ConfigurationError" xml:space="preserve">
+    <value>خطأ في إعدادات التكوين</value>
+  </data>
+  <data name="UnexpectedError" xml:space="preserve">
+    <value>حدث خطأ غير متوقع</value>
+  </data>
+  <data name="ServiceUnavailable" xml:space="preserve">
+    <value>الخدمة غير متوفرة حالياً</value>
+  </data>
+  <data name="DeviceConnectionError" xml:space="preserve">
+    <value>تعذر الاتصال بالجهاز</value>
+  </data>
+  
+  <!-- ZKTeco Device Errors -->
+  <data name="ZKTecoConnectionError" xml:space="preserve">
+    <value>تعذر الاتصال بجهاز البصمة</value>
+  </data>
+  <data name="ZKTecoDownloadError" xml:space="preserve">
+    <value>حدث خطأ أثناء تنزيل البيانات من جهاز البصمة</value>
+  </data>
+  <data name="ZKTecoUploadError" xml:space="preserve">
+    <value>حدث خطأ أثناء رفع البيانات إلى جهاز البصمة</value>
+  </data>
+  <data name="ZKTecoInvalidIPAddress" xml:space="preserve">
+    <value>عنوان IP للجهاز غير صحيح</value>
+  </data>
+  <data name="ZKTecoDeviceOffline" xml:space="preserve">
+    <value>جهاز البصمة غير متصل</value>
+  </data>
+  <data name="ZKTecoSyncError" xml:space="preserve">
+    <value>حدث خطأ في مزامنة بيانات جهاز البصمة</value>
+  </data>
+  
+  <!-- Report Errors -->
+  <data name="ReportGenerationError" xml:space="preserve">
+    <value>حدث خطأ أثناء إنشاء التقرير</value>
+  </data>
+  <data name="ReportTemplateNotFound" xml:space="preserve">
+    <value>قالب التقرير غير موجود</value>
+  </data>
+  <data name="ReportExportError" xml:space="preserve">
+    <value>حدث خطأ أثناء تصدير التقرير</value>
+  </data>
+  <data name="ReportDataError" xml:space="preserve">
+    <value>خطأ في بيانات التقرير</value>
+  </data>
+  <data name="InvalidReportParameters" xml:space="preserve">
+    <value>معلمات التقرير غير صحيحة</value>
+  </data>
+</root>
